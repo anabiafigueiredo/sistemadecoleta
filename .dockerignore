@@ -1,0 +1,14 @@
+.git
+**/.git
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/*.md
+**/dados_sanitizados.xlsx
+**/.env*
+!**/.env.example
+front-end/tsconfig.tsbuildinfo
+back-end/docs
+**/rules
+.cursor

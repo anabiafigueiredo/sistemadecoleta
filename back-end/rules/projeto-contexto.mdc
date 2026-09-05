@@ -1,0 +1,31 @@
+---
+description: Visão geral, arquitetura e stack do projeto de coleta socioeconômica
+alwaysApply: true
+---
+
+# Coleta de Dados — Contexto do Projeto
+
+Plataforma full-stack para levantamento socioeconômico/educacional de um Colégio Comunitário.
+
+## Estrutura do repositório
+
+- `back-end/` — Docker, Prisma, API, `.env`, `lib/prisma.ts`
+- `front-end/` — Dashboard Next.js (a criar)
+
+## Arquitetura
+
+```
+[App Mobile offline-first] → [API REST Next.js] → [Prisma / PostgreSQL] → [Dashboard Web]
+```
+
+- **Nossa responsabilidade:** Backend/DB + Interface Web (Next.js, Tailwind, Shadcn/ui, Recharts)
+- **Dupla:** App Mobile de coleta offline-first
+- **DB local:** Docker Compose PostgreSQL 16 Alpine (`back-end/`)
+- **DB produção:** Supabase (só troca `DATABASE_URL`)
+- **ORM:** Prisma, 3FN, UUIDs como PK (sincronização offline)
+
+## Entidades (schema.prisma)
+
+`Familia` 1→N `Aluno` 1→1 `Responsavel` | `Aluno` 1→N `PesquisaSocioeconomica`
+
+Mantenha nomes de variáveis/tabelas coerentes com o schema Prisma existente.

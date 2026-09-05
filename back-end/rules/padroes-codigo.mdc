@@ -1,0 +1,18 @@
+---
+description: Padrões TypeScript, API e qualidade de código
+alwaysApply: true
+---
+
+# Padrões de Código
+
+- TypeScript estrito em todo o projeto
+- Código limpo, performático e com tratamento de erros explícito
+- Validar inputs em todos os endpoints da API (preferir Zod)
+- Não inventar campos fora do `prisma/schema.prisma`
+- Preferir Server Components / Route Handlers do Next.js App Router quando aplicável
+
+## API REST
+
+- Respostas JSON consistentes: `{ data }` em sucesso, `{ error: { code, message } }` em falha
+- Status HTTP adequados (400 validação, 404 not found, 409 conflito, 500 interno)
+- Nunca expor stack traces ou detalhes internos do banco ao client

@@ -1,0 +1,34 @@
+---
+description: Regras de sanitização ETL para importação Excel e APIs
+globs: "**/import*/**,**/etl/**,**/sanit*/**,**/api/**/*.ts"
+alwaysApply: false
+---
+
+# Sanitização e Qualidade de Dados (ETL)
+
+Fonte inicial: planilha Excel com inconsistências de campo. Toda importação/API deve tratar:
+
+## Deduplicação
+- Ignorar duplicatas por `codigoAluno` / `id_aluno` e `cpf` do aluno
+
+## Texto
+- Trim + colapsar espaços múltiplos (`ana   silva` → `Ana Silva`)
+- Normalizar capitalização de nomes próprios e bairros/comunidades
+
+## Valores anômalos
+- `frequenciaEscolarPct` > 100 → clamp ou rejeitar (documentar a escolha)
+- `tempoDeslocamentoMin` < 0 → rejeitar ou zerar
+- Validar coerência nome/sexo/parentesco quando possível
+
+## Documentos e datas
+- CPF/telefone: só dígitos (remover máscaras)
+- Datas no padrão `YYYY-MM-DD` (ISO) no banco
+
+```typescript
+// ✅ GOOD
+const cpf = raw.replace(/\D/g, "");
+const nome = raw.trim().replace(/\s+/g, " ");
+
+// ❌ BAD
+await prisma.aluno.create({ data: { cpf: "123.456.789-00", nome: "  ana   silva " } });
+```

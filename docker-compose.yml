@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: coleta_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: coleta_dados
+    ports:
+      - "5432:5432"
+    volumes:
+      - coleta_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coleta_dados"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  db-init:
+    build:
+      context: .
+      dockerfile: back-end/Dockerfile
+    container_name: coleta_db_init
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/coleta_dados?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: front-end/Dockerfile
+    container_name: coleta_web
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/coleta_dados?schema=public
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "3000:3000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+volumes:
+  coleta_postgres_data:
+    name: coleta_postgres_data

@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Coleta Escolar",
+    "slug": "coleta-escolar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "coletaescolar",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F766E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "br.org.colegiocomunitario.coleta"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F766E"
+      },
+      "package": "br.org.colegiocomunitario.coleta",
+      "permissions": ["ACCESS_NETWORK_STATE", "INTERNET"],
+      "usesCleartextTraffic": true
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

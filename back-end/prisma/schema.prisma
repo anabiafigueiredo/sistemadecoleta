@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Supabase: use DIRECT_URL (session) para migrate; DATABASE_URL (pooler) para a app
+  directUrl = env("DIRECT_URL")
+}
+
+enum OrigemColeta {
+  PLANILHA
+  MOBILE
+}
+
+/// Ciclo de monitoramento (T1, T2, T3...) com data de referência.
+model MomentoColeta {
+  id             String       @id @default(uuid())
+  codigo         String       @unique
+  titulo         String
+  descricao      String?
+  dataReferencia DateTime
+  origemPadrao   OrigemColeta
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  pesquisas PesquisaSocioeconomica[]
+
+  @@map("momentos_coleta")
+}
+
+model Familia {
+  id                    String   @id @default(uuid())
+  codigoFamilia         String   @unique
+  endereco              String
+  bairro                String
+  comunidade            String
+  qtdMoradores          Int
+  rendaFamiliarMensal   Decimal  @db.Decimal(10, 2)
+  recebeBeneficioSocial Boolean
+  beneficioSocial       String?
+  possuiInternetCasa    Boolean
+  tipoAcessoInternet    String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  alunos Aluno[]
+
+  @@map("familias")
+}
+
+model Aluno {
+  id             String    @id @default(uuid())
+  codigoAluno    String    @unique
+  familiaId      String
+  nome           String
+  dataNascimento DateTime?
+  sexo           String?   @db.Char(1)
+  cpf            String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  familia                  Familia                   @relation(fields: [familiaId], references: [id], onDelete: Cascade)
+  responsavel              Responsavel?
+  pesquisasSocioeconomicas PesquisaSocioeconomica[]
+
+  @@map("alunos")
+}
+
+model Responsavel {
+  id         String  @id @default(uuid())
+  alunoId    String  @unique
+  nome       String
+  parentesco String
+  cpf        String?
+  telefone   String?
+  email      String?
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@map("responsaveis")
+}
+
+model PesquisaSocioeconomica {
+  id                             String   @id @default(uuid())
+  alunoId                        String
+  momentoColetaId                String
+  meioTransporteEscola           String
+  tempoDeslocamentoMin           Int
+  frequenciaEscolarPct           Decimal  @db.Decimal(5, 2)
+  anoSerie                       String
+  turno                          String
+  necessidadeEducacionalEspecial Boolean
+  descricaoNecessidade           String?
+  observacao                     String?
+  sincronizadoEm                 DateTime @default(now())
+
+  aluno         Aluno         @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  momentoColeta MomentoColeta @relation(fields: [momentoColetaId], references: [id], onDelete: Restrict)
+
+  @@index([momentoColetaId])
+  @@map("pesquisas_socioeconomicas")
+}
