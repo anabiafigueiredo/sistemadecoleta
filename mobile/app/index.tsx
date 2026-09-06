@@ -75,7 +75,7 @@ export default function HomeScreen() {
       />
 
       <Text style={styles.footerHint}>
-        A aba Planilha lista os registros importados (T1) vindos do servidor.
+        A aba Ciclo 1 lista os registros importados (baseline) vindos do servidor.
       </Text>
     </View>
   );

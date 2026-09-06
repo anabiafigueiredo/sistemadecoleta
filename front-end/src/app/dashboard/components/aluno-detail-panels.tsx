@@ -105,7 +105,7 @@ export function AlunoDetailPanels({
                     aluno.pesquisa.origem === "PLANILHA" ? "warning" : "default"
                   }
                 >
-                  {aluno.pesquisa.origem === "PLANILHA" ? "Planilha" : "Mobile"}
+                  {aluno.pesquisa.origem === "PLANILHA" ? "Ciclo 1" : "Ciclo 2"}
                 </Badge>
                 <Badge variant="secondary">
                   Questionário v{aluno.pesquisa.versaoQuestionario}

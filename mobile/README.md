@@ -76,18 +76,40 @@ mobile/
 
 ## Como rodar
 
-1. API + banco no ar (`front-end` em `:3000`).
-2. Configure a URL:
+### 1. Pré-requisitos (máquina)
+
+1. API + banco no ar (`front-end` em `:3000` — ver [README na raiz](../README.md)).
+2. Node.js 20+ e `npm` instalados.
+
+### 2. Primeira vez no celular (Expo Go)
+
+O app de desenvolvimento **não** está na loja como “Coleta Escolar”. No dia a dia usamos o **Expo Go**, que carrega o projeto a partir do PC.
+
+1. No celular, instale o **Expo Go**:
+   - Android: [Google Play — Expo Go](https://play.google.com/store/apps/details?id=host.exp.exponent)
+   - iOS: [App Store — Expo Go](https://apps.apple.com/app/expo-go/id982107779)
+2. Confirme que o Expo Go é **compatível com SDK 57** (atualize o app na loja). Versões antigas (ex.: SDK 52) **não** abrem este projeto.
+3. Conta Expo: **não é obrigatória** só para abrir o projeto via QR code. Login no Expo Go / no site da Expo só entra se for usar EAS Build, publish ou recursos da conta.
+4. Deixe o **celular e o PC na mesma rede Wi‑Fi** (rede de convidado / isolamento de clientes costuma impedir o sync e o carregamento do bundle).
+
+### 3. Configure a URL da API
 
 ```bash
 cd mobile
 cp .env.example .env
-# Android emulator: EXPO_PUBLIC_API_URL=http://10.0.2.2:3000
-# iOS sim:          EXPO_PUBLIC_API_URL=http://localhost:3000
-# Device físico:    EXPO_PUBLIC_API_URL=http://SEU_IP_LAN:3000
 ```
 
-3. Instale e inicie:
+Edite `EXPO_PUBLIC_API_URL` conforme o alvo:
+
+```bash
+# Android emulator: http://10.0.2.2:3000
+# iOS Simulator:    http://localhost:3000
+# Device físico:    http://SEU_IP_LAN:3000   ← IP da máquina na LAN (não use localhost)
+```
+
+No Linux/macOS, um jeito de achar o IP: `ip a` ou `ifconfig` (ex.: `192.168.x.x`). Depois de mudar o `.env`, reinicie o Expo (`npx expo start -c`).
+
+### 4. Instale e inicie no PC
 
 ```bash
 npm install
@@ -96,7 +118,20 @@ npx expo start
 npm run start:offline
 ```
 
-> **SDK 57:** use Expo Go compatível com SDK 57 (ou development build). O app antigo do Expo Go (SDK 52) **não** abre este projeto.
+No terminal aparece um **QR code**.
+
+### 5. Abra o projeto no aparelho
+
+1. Abra o **Expo Go**.
+2. Escaneie o QR:
+   - **Android:** pelo próprio Expo Go (Scan QR code) ou pela câmera, conforme a versão.
+   - **iOS:** câmera do sistema → abrir no Expo Go.
+3. Aguarde o bundle carregar. A home do app (Início / Planilha / Realizadas / Pendentes) deve aparecer.
+4. Teste rápido: com a API no ar, abra **Planilha** — se a URL estiver errada ou o celular não alcançar o PC, a lista falha; ajuste `EXPO_PUBLIC_API_URL` e a rede.
+
+**Alternativa sem celular físico:** emulador Android / simulador iOS (tecla `a` / `i` no terminal do Expo, com o emulador já instalado).
+
+> Para build instalável (APK / development build), ver `eas.json` e o fluxo EAS — fora do caminho padrão da demo com Expo Go.
 
 ## Fluxo offline-first
 

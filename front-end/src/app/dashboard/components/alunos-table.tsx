@@ -27,7 +27,7 @@ function formatDataCurta(iso: string) {
 }
 
 function origemLabel(origem: "PLANILHA" | "MOBILE") {
-  return origem === "PLANILHA" ? "Planilha" : "Mobile";
+  return origem === "PLANILHA" ? "Ciclo 1" : "Ciclo 2";
 }
 
 function dataEntrevista(aluno: AlunoListItem): string | null {
@@ -114,7 +114,7 @@ export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
               Consulta de entrevistas
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Aluno, família/comunidade, data, origem (planilha vs mobile) e
+              Aluno, família/comunidade, data, ciclo (1 = baseline, 2 = campo) e
               status
             </CardDescription>
           </div>
@@ -134,18 +134,18 @@ export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
           <FilterChip
             active={origemFiltro === "TODOS"}
             onClick={() => setOrigemFiltro("TODOS")}
-            label="Todas as origens"
+            label="Todos os ciclos"
           />
           <FilterChip
             active={origemFiltro === "PLANILHA"}
             onClick={() => setOrigemFiltro("PLANILHA")}
-            label="Planilha"
-            hint="Importação / Excel (v1)"
+            label="Ciclo 1"
+            hint="Baseline / importação da planilha (v1)"
           />
           <FilterChip
             active={origemFiltro === "MOBILE"}
             onClick={() => setOrigemFiltro("MOBILE")}
-            label="Mobile"
+            label="Ciclo 2"
             hint="Entrevistas sincronizadas do app (v2)"
           />
         </div>
@@ -156,7 +156,7 @@ export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
           <span className="truncate">
             {origemFiltro !== "TODOS"
               ? origemLabel(origemFiltro)
-              : "Todas as origens"}
+              : "Todos os ciclos"}
             {debounced ? ` · “${debounced}”` : ""}
           </span>
         </div>
@@ -258,7 +258,7 @@ export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
                       Família / comunidade
                     </th>
                     <th className="px-3 py-3 font-medium">Data entrevista</th>
-                    <th className="px-3 py-3 font-medium">Origem</th>
+                    <th className="px-3 py-3 font-medium">Ciclo</th>
                     <th className="px-3 py-3 font-medium">Status</th>
                     <th className="px-3 py-3 font-medium" />
                   </tr>

@@ -48,8 +48,8 @@ export default function RootLayout() {
         <Tabs.Screen
           name="planilha"
           options={{
-            title: "Planilha (T1)",
-            tabBarLabel: "Planilha",
+            title: "Ciclo 1 (baseline)",
+            tabBarLabel: "Ciclo 1",
             tabBarIcon: ({ color }) => (
               <Text style={{ color, fontSize: 18 }}>▤</Text>
             ),

@@ -125,7 +125,7 @@ npm install
 npx expo start
 ```
 
-Use **Expo Go compatível com SDK 57**. Detalhes: [`mobile/README.md`](mobile/README.md).
+Primeira vez no celular (baixar Expo Go SDK 57, mesma Wi‑Fi, QR code, `.env`): passo a passo em [`mobile/README.md`](mobile/README.md#2-primeira-vez-no-celular-expo-go).
 
 ### Render (produção)
 

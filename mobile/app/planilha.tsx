@@ -34,7 +34,7 @@ export default function PlanilhaScreen() {
 
   const load = useCallback(async () => {
     if (!online) {
-      setError("Sem internet — a planilha só carrega online.");
+      setError("Sem internet — o Ciclo 1 só carrega online.");
       setItems([]);
       return;
     }
@@ -48,7 +48,7 @@ export default function PlanilhaScreen() {
       setItems(data);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Falha ao carregar a planilha",
+        e instanceof Error ? e.message : "Falha ao carregar o Ciclo 1",
       );
       setItems([]);
     } finally {
@@ -76,7 +76,7 @@ export default function PlanilhaScreen() {
 
       <View style={styles.topRow}>
         <Text style={styles.hint}>
-          Alunos da planilha no servidor. Toque para ver detalhes.
+          Alunos do Ciclo 1 (baseline) no servidor. Toque para ver detalhes.
         </Text>
         <Pressable
           onPress={() => void load()}
@@ -113,7 +113,7 @@ export default function PlanilhaScreen() {
           }
           ListEmptyComponent={
             <Text style={styles.empty}>
-              Nenhum registro da planilha encontrado.
+              Nenhum registro do Ciclo 1 encontrado.
             </Text>
           }
           renderItem={({ item }) => (
@@ -147,7 +147,7 @@ function PlanilhaRow({
           <Text style={styles.chevron}>{open ? "▲" : "▼"}</Text>
         </View>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>Planilha</Text>
+          <Text style={styles.badgeText}>Ciclo 1</Text>
         </View>
       </View>
       <Text style={styles.meta}>

@@ -92,7 +92,7 @@ export function AlunoDetailPanels({ aluno }: { aluno: AlunoRemote }) {
           <>
             <Line>
               {pesquisa.momento.codigo} ·{" "}
-              {pesquisa.origem === "PLANILHA" ? "Planilha" : "Mobile"} · v
+              {pesquisa.origem === "PLANILHA" ? "Ciclo 1" : "Ciclo 2"} · v
               {pesquisa.versaoQuestionario}
             </Line>
             <Line>
