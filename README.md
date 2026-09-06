@@ -174,7 +174,6 @@ Contrato e opções: código em `front-end/src/lib/validations/coleta.ts` e `opc
 | Doc | Conteúdo |
 |-----|----------|
 | [docs/roteiro-demonstracao.md](docs/roteiro-demonstracao.md) | Checklist ponta a ponta (B-13) |
-| [docs/backlog-mvp-cliente.md](docs/backlog-mvp-cliente.md) | Itens B-01…B-13 |
 | [front-end/README.md](front-end/README.md) | Detalhes Next/API |
 | [mobile/README.md](mobile/README.md) | Detalhes Expo/offline |
 | [back-end/DOCKER.md](back-end/DOCKER.md) | Postgres isolado |
