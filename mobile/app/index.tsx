@@ -1,147 +1,179 @@
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import { Link, useFocusEffect } from "expo-router";
-import { useColetas } from "@/hooks/useColetas";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useNetwork } from "@/hooks/useNetwork";
-import { pruneDeletedRemoteColetas } from "@/lib/sync";
-import type { ColetaLocal } from "@/lib/types";
+import { listColetas, listPending } from "@/lib/storage";
+import { API_URL } from "@/lib/config";
 
-export default function ListaScreen() {
-  const [query, setQuery] = useState("");
-  const { items, loading, refresh } = useColetas(query);
+/**
+ * Tela inicial (doc §3.1):
+ * Nova entrevista · Entrevistas realizadas · Pendentes de sincronização
+ */
+export default function HomeScreen() {
+  const router = useRouter();
   const { online } = useNetwork();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [realizadasCount, setRealizadasCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        if (online) {
-          try {
-            await pruneDeletedRemoteColetas();
-          } catch {
-            // mantém lista local se a API falhar
-          }
-        }
-        await refresh();
+        const [pending, all] = await Promise.all([
+          listPending(),
+          listColetas(),
+        ]);
+        setPendingCount(pending.length);
+        setRealizadasCount(all.filter((c) => c.sincronizado).length);
       })();
-    }, [online, refresh]),
+    }, []),
   );
 
   return (
     <View style={styles.container}>
       <View style={[styles.banner, online ? styles.online : styles.offline]}>
         <Text style={styles.bannerText}>
-          {online ? "Online — sync automático ativo" : "Offline — salvando só no aparelho"}
+          {online ? "Online" : "Offline"} · {API_URL.replace(/^https?:\/\//, "")}
         </Text>
       </View>
 
-      <TextInput
-        style={styles.search}
-        placeholder="Buscar por nome ou código da família…"
-        placeholderTextColor="#94A3B8"
-        value={query}
-        onChangeText={setQuery}
+      <Text style={styles.heading}>Coleta de campo</Text>
+      <Text style={styles.subheading}>
+        Questionário fixo em etapas, com validações e sync offline-first.
+      </Text>
+
+      <MenuCard
+        title="Nova entrevista"
+        description="Iniciar coleta (identificação → familiar → socioeconômico → educacional → revisão)"
+        accent="#0F766E"
+        onPress={() => router.push("/coleta/nova")}
+      />
+      <MenuCard
+        title="Entrevistas realizadas"
+        description={
+          realizadasCount === 0
+            ? "Entrevistas já sincronizadas neste aparelho"
+            : `${realizadasCount} entrevista(s) sincronizada(s)`
+        }
+        accent="#1D4E89"
+        onPress={() => router.push("/entrevistas")}
+      />
+      <MenuCard
+        title="Pendentes de sincronização"
+        description={
+          pendingCount === 0
+            ? "Fila vazia — nada aguardando envio"
+            : `${pendingCount} pendente(s) na fila`
+        }
+        accent="#C2410C"
+        badge={pendingCount > 0 ? String(pendingCount) : undefined}
+        onPress={() => router.push("/sync")}
       />
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color="#0F766E" />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={
-            items.length === 0 ? styles.emptyWrap : styles.list
-          }
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              Nenhum registro local. Toque em Coletar para iniciar.
-            </Text>
-          }
-          renderItem={({ item }) => <ColetaRow item={item} />}
-        />
-      )}
+      <Text style={styles.footerHint}>
+        A aba Planilha lista os registros importados (T1) vindos do servidor.
+      </Text>
     </View>
   );
 }
 
-function ColetaRow({ item }: { item: ColetaLocal }) {
-  const { aluno, familia, momento } = item.payload;
+function MenuCard({
+  title,
+  description,
+  accent,
+  badge,
+  onPress,
+}: {
+  title: string;
+  description: string;
+  accent: string;
+  badge?: string;
+  onPress: () => void;
+}) {
   return (
-    <Link href={`/coleta/${item.id}`} asChild>
-      <Pressable style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.name}>{aluno.nome}</Text>
-          <View
-            style={[
-              styles.badge,
-              item.sincronizado ? styles.badgeOk : styles.badgePending,
-            ]}
-          >
-            <Text style={styles.badgeText}>
-              {item.sincronizado ? "Sync" : "Pendente"}
-            </Text>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        { borderLeftColor: accent },
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={styles.cardTop}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        {badge ? (
+          <View style={[styles.badge, { backgroundColor: accent }]}>
+            <Text style={styles.badgeText}>{badge}</Text>
           </View>
-        </View>
-        <Text style={styles.meta}>
-          {aluno.codigoAluno} · {familia.codigoFamilia} · {momento.codigo}
-        </Text>
-        <Text style={styles.meta}>
-          {familia.bairro} · {familia.comunidade}
-        </Text>
-      </Pressable>
-    </Link>
+        ) : null}
+      </View>
+      <Text style={styles.cardDesc}>{description}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
-  banner: { paddingVertical: 8, paddingHorizontal: 16 },
+  container: { flex: 1, backgroundColor: "#F1F5F9", padding: 16 },
+  banner: {
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+  },
   online: { backgroundColor: "#CCFBF1" },
   offline: { backgroundColor: "#FEF3C7" },
-  bannerText: { fontSize: 12, fontWeight: "600", color: "#134E4A", textAlign: "center" },
-  search: {
-    margin: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#0F172A",
+  bannerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#134E4A",
+    textAlign: "center",
   },
-  list: { padding: 12, paddingBottom: 40, gap: 10 },
-  emptyWrap: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  empty: { textAlign: "center", color: "#64748B", fontSize: 15 },
+  heading: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 6,
+  },
+  subheading: {
+    fontSize: 14,
+    color: "#64748B",
+    marginBottom: 18,
+    lineHeight: 20,
+  },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    borderLeftWidth: 5,
   },
-  cardHeader: {
+  cardPressed: { opacity: 0.88 },
+  cardTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
   },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", flex: 1 },
-  meta: { marginTop: 4, color: "#64748B", fontSize: 13 },
+  cardTitle: { fontSize: 17, fontWeight: "700", color: "#0F172A", flex: 1 },
+  cardDesc: { marginTop: 6, fontSize: 13, color: "#64748B", lineHeight: 18 },
   badge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
   },
-  badgeOk: { backgroundColor: "#D1FAE5" },
-  badgePending: { backgroundColor: "#FFEDD5" },
-  badgeText: { fontSize: 11, fontWeight: "700", color: "#134E4A" },
+  badgeText: { color: "#FFFFFF", fontWeight: "800", fontSize: 13 },
+  footerHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#94A3B8",
+    textAlign: "center",
+  },
 });

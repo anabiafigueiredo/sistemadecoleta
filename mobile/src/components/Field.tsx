@@ -15,7 +15,7 @@ type Props = TextInputProps & {
 
 export function Field({ label, error, containerStyle, style, ...rest }: Props) {
   return (
-    <View style={[styles.wrap, containerStyle]}>
+    <View style={[styles.wrap, containerStyle] as never}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholderTextColor="#94A3B8"

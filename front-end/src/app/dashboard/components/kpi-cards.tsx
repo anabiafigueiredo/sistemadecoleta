@@ -5,9 +5,9 @@ import {
   Home,
   Accessibility,
   Clock3,
-  Percent,
   Wifi,
   Wallet,
+  OctagonAlert,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +56,7 @@ function KpiGrid({ items }: { items: Kpi[] }) {
 }
 
 export function KpiCards({ stats }: { stats: DashboardStats }) {
+  /** Cards alinhados ao doc da cliente (B-09). */
   const principais: Kpi[] = [
     {
       label: "Alunos",
@@ -64,31 +65,40 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
       icon: GraduationCap,
     },
     {
-      label: "Coletas",
-      value: String(stats.totalColetas),
-      hint: "Pesquisas enviadas (T1+T2+T3…)",
-      icon: ClipboardList,
-    },
-    {
       label: "Famílias",
       value: String(stats.totalFamilias),
       hint: "Núcleos únicos pesquisados",
       icon: Home,
     },
     {
-      label: "Renda média",
-      value: formatCurrency(stats.rendaMediaFamiliar),
-      hint: "Renda mensal familiar",
+      label: "Renda per capita",
+      value: formatCurrency(stats.rendaPerCapitaMediana),
+      hint: "Mediana de renda ÷ moradores (por família)",
       icon: Wallet,
+    },
+    {
+      label: "Com internet",
+      value: formatPercent(stats.percentualComInternet),
+      hint: "% de famílias com acesso em casa",
+      icon: Wifi,
     },
   ];
 
   const contexto: Kpi[] = [
     {
-      label: "Com internet",
-      value: formatPercent(stats.percentualComInternet),
-      hint: "Núcleos com acesso em casa",
-      icon: Wifi,
+      label: "Com barreira (v2)",
+      value: formatPercent(stats.percentualComBarreiraV2),
+      hint:
+        stats.totalColetasV2 === 0
+          ? "Ainda sem entrevistas mobile v2"
+          : `${stats.coletasV2ComBarreira} de ${stats.totalColetasV2} — base: entrevistas mobile v2`,
+      icon: OctagonAlert,
+    },
+    {
+      label: "Coletas",
+      value: String(stats.totalColetas),
+      hint: `${stats.totalColetasV2} com questionário v2 (mobile)`,
+      icon: ClipboardList,
     },
     {
       label: "Com benefício",
@@ -101,12 +111,6 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
       value: formatPercent(stats.percentualComNee),
       hint: "Alunos com necessidade especial",
       icon: Accessibility,
-    },
-    {
-      label: "Freq. média",
-      value: formatPercent(stats.frequenciaMediaGeral),
-      hint: "Presença escolar geral",
-      icon: Percent,
     },
   ];
 
@@ -123,11 +127,16 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
           Contexto educacional e social
         </h2>
         <KpiGrid items={contexto} />
-        <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <p className="inline-flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           <Clock3 className="h-3.5 w-3.5 opacity-70" />
           Deslocamento médio:{" "}
           <span className="font-semibold text-foreground">
             {stats.tempoMedioDeslocamentoMin} min
+          </span>
+          <span className="mx-1 text-border">·</span>
+          Renda familiar média:{" "}
+          <span className="font-semibold text-foreground">
+            {formatCurrency(stats.rendaMediaFamiliar)}
           </span>
         </p>
       </section>

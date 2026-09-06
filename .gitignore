@@ -24,6 +24,8 @@ mobile/dist/
 # Prisma
 **/prisma/*.db
 **/prisma/*.db-journal
+front-end/src/generated/prisma/
+back-end/generated/prisma/
 
 # Logs / OS / IDE
 npm-debug.log*
@@ -37,3 +39,6 @@ next-env.d.ts
 
 # Docker
 *.log
+
+# Prisma client gerado (alternativo)
+front-end/generated/

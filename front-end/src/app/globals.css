@@ -86,3 +86,17 @@ body {
     height: 18rem;
   }
 }
+
+.bairro-map-tooltip {
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgb(20 32 28 / 12%);
+}
+
+.leaflet-container {
+  font-family: var(--font-body), system-ui, sans-serif;
+  background: #eef3f0;
+}

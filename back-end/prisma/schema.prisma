@@ -2,6 +2,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/// Client tipado no back-end (seed/ETL) — evita cache stale de node_modules no IDE.
+generator clientBack {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+/// Client tipado no front-end (evita cache stale de node_modules no IDE).
+generator clientFront {
+  provider = "prisma-client-js"
+  output   = "../../front-end/src/generated/prisma"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -12,6 +24,73 @@ datasource db {
 enum OrigemColeta {
   PLANILHA
   MOBILE
+}
+
+enum TipoLocalidade {
+  URBANA
+  RURAL
+  COMUNIDADE_RIBEIRINHA
+  OUTRA
+}
+
+enum EscolaridadeResponsavel {
+  SEM_ESCOLARIDADE
+  FUNDAMENTAL_INCOMPLETO
+  FUNDAMENTAL_COMPLETO
+  MEDIO_INCOMPLETO
+  MEDIO_COMPLETO
+  SUPERIOR_INCOMPLETO
+  SUPERIOR_COMPLETO
+  POS_GRADUACAO
+}
+
+enum SituacaoOcupacional {
+  EMPREGADO
+  DESEMPREGADO
+  AUTONOMO_INFORMAL
+  APOSENTADO
+  ESTUDANTE
+  DO_LAR
+  OUTRO
+}
+
+enum EquipamentoEstudo {
+  COMPUTADOR
+  TABLET
+  CELULAR
+  NENHUM
+}
+
+enum DisponibilidadeEquipamento {
+  EXCLUSIVO
+  COMPARTILHADO_DISPONIVEL
+  COMPARTILHADO_LIMITADO
+  N_A
+}
+
+enum LocalEstudo {
+  SIM
+  PARCIALMENTE
+  NAO
+}
+
+enum AcompanhamentoFamiliar {
+  SEMPRE
+  FREQUENTEMENTE
+  AS_VEZES
+  RARAMENTE
+  NUNCA
+}
+
+enum ApoioPrioritario {
+  REFORCO
+  INCLUSAO_DIGITAL
+  AEE
+  ESPORTES_CULTURA
+  ORIENTACAO
+  APOIO_SOCIAL
+  NENHUM
+  OUTRO
 }
 
 /// Ciclo de monitoramento (T1, T2, T3...) com data de referência.
@@ -31,19 +110,21 @@ model MomentoColeta {
 }
 
 model Familia {
-  id                    String   @id @default(uuid())
-  codigoFamilia         String   @unique
+  id                    String          @id @default(uuid())
+  codigoFamilia         String          @unique
   endereco              String
   bairro                String
   comunidade            String
+  /// Novo (v2); null nas importações da planilha.
+  tipoLocalidade        TipoLocalidade?
   qtdMoradores          Int
-  rendaFamiliarMensal   Decimal  @db.Decimal(10, 2)
+  rendaFamiliarMensal   Decimal         @db.Decimal(10, 2)
   recebeBeneficioSocial Boolean
   beneficioSocial       String?
   possuiInternetCasa    Boolean
   tipoAcessoInternet    String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   alunos Aluno[]
 
@@ -69,13 +150,16 @@ model Aluno {
 }
 
 model Responsavel {
-  id         String  @id @default(uuid())
-  alunoId    String  @unique
-  nome       String
-  parentesco String
-  cpf        String?
-  telefone   String?
-  email      String?
+  id                   String                  @id @default(uuid())
+  alunoId              String                  @unique
+  nome                 String
+  parentesco           String
+  cpf                  String?
+  telefone             String?
+  email                String?
+  /// Novos (v2); null nas importações da planilha.
+  escolaridade         EscolaridadeResponsavel?
+  situacaoOcupacional  SituacaoOcupacional?
 
   aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 
@@ -83,22 +167,59 @@ model Responsavel {
 }
 
 model PesquisaSocioeconomica {
-  id                             String   @id @default(uuid())
+  id                             String       @id @default(uuid())
   alunoId                        String
   momentoColetaId                String
+  /// PLANILHA = importação Excel; MOBILE = app.
+  origem                         OrigemColeta
+  /// 1 = questionário base (Excel); 2 = formulário novo (mobile v2).
+  versaoQuestionario             Int          @default(1)
   meioTransporteEscola           String
   tempoDeslocamentoMin           Int
-  frequenciaEscolarPct           Decimal  @db.Decimal(5, 2)
+  /// Dado administrativo; null em entrevistas mobile (não perguntar ao familiar).
+  frequenciaEscolarPct           Decimal?     @db.Decimal(5, 2)
   anoSerie                       String
   turno                          String
   necessidadeEducacionalEspecial Boolean
   descricaoNecessidade           String?
   observacao                     String?
-  sincronizadoEm                 DateTime @default(now())
+  /// Bloco D (v2); null nas importações da planilha.
+  equipamentoEstudo              EquipamentoEstudo?
+  disponibilidadeEquipamento     DisponibilidadeEquipamento?
+  localEstudo                    LocalEstudo?
+  acompanhamentoFamiliar         AcompanhamentoFamiliar?
+  apoioPrioritario               ApoioPrioritario?
+  sincronizadoEm                 DateTime     @default(now())
 
   aluno         Aluno         @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   momentoColeta MomentoColeta @relation(fields: [momentoColetaId], references: [id], onDelete: Restrict)
+  barreiras     PesquisaBarreira[]
 
   @@index([momentoColetaId])
+  @@index([origem, versaoQuestionario])
   @@map("pesquisas_socioeconomicas")
+}
+
+/// Catálogo fixo de barreiras escolares (seed).
+model Barreira {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  nome      String
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  pesquisas PesquisaBarreira[]
+
+  @@map("barreiras")
+}
+
+model PesquisaBarreira {
+  pesquisaId String
+  barreiraId String
+
+  pesquisa PesquisaSocioeconomica @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
+  barreira Barreira               @relation(fields: [barreiraId], references: [id], onDelete: Restrict)
+
+  @@id([pesquisaId, barreiraId])
+  @@map("pesquisa_barreiras")
 }

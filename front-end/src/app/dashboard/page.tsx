@@ -26,7 +26,9 @@ export default function DashboardPage() {
       setStats(data);
       setError(null);
       setLastUpdated(new Date());
-      setRefreshKey((k) => k + 1);
+      // Só recarrega a tabela na carga inicial / clique em Atualizar
+      // (poll silencioso dos KPIs não deve abortar o filtro de alunos).
+      if (!opts?.silent) setRefreshKey((k) => k + 1);
     } catch (err) {
       setError(
         err instanceof ApiRequestError
@@ -115,7 +117,7 @@ export default function DashboardPage() {
         <>
           <KpiCards stats={stats} />
           <DashboardCharts stats={stats} />
-          <AlunosTable momentos={stats.momentos} refreshKey={refreshKey} />
+          <AlunosTable refreshKey={refreshKey} />
         </>
       ) : !error ? (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

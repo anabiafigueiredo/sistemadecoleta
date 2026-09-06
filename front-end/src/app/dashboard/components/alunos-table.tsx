@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { Search, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -13,8 +13,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { AlunoDetailPanels } from "./aluno-detail-panels";
 import { ApiRequestError, fetchJson } from "@/lib/fetch-json";
-import type { AlunoListItem, MomentoColetaResumo } from "@/lib/types";
-import { formatPercent } from "@/lib/utils";
+import type { AlunoListItem } from "@/lib/types";
+
+type OrigemFiltro = "TODOS" | "PLANILHA" | "MOBILE";
 
 function formatDataCurta(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", {
@@ -25,21 +26,34 @@ function formatDataCurta(iso: string) {
   });
 }
 
-export function AlunosTable({
-  momentos = [],
-  refreshKey = 0,
-}: {
-  momentos?: MomentoColetaResumo[];
-  /** Incrementado pelo dashboard quando os KPIs são recarregados. */
-  refreshKey?: number;
-}) {
+function origemLabel(origem: "PLANILHA" | "MOBILE") {
+  return origem === "PLANILHA" ? "Planilha" : "Mobile";
+}
+
+function dataEntrevista(aluno: AlunoListItem): string | null {
+  if (!aluno.pesquisa) return null;
+  if (aluno.pesquisa.origem === "MOBILE") {
+    return aluno.pesquisa.sincronizadoEm;
+  }
+  return aluno.pesquisa.momento.dataReferencia;
+}
+
+function isAbortError(err: unknown) {
+  return (
+    (err instanceof DOMException && err.name === "AbortError") ||
+    (err instanceof Error && err.name === "AbortError")
+  );
+}
+
+export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [momentoFiltro, setMomentoFiltro] = useState<string>("TODOS");
+  const [origemFiltro, setOrigemFiltro] = useState<OrigemFiltro>("TODOS");
   const [alunos, setAlunos] = useState<AlunoListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 280);
@@ -48,22 +62,27 @@ export function AlunosTable({
 
   useEffect(() => {
     const controller = new AbortController();
+    const requestId = ++requestIdRef.current;
 
-    startTransition(async () => {
+    setLoading(true);
+    setError(null);
+    setAlunos([]);
+    setExpandedId(null);
+
+    void (async () => {
       try {
-        setError(null);
         const params = new URLSearchParams();
         if (debounced) params.set("q", debounced);
-        if (momentoFiltro !== "TODOS") params.set("momento", momentoFiltro);
+        if (origemFiltro !== "TODOS") params.set("origem", origemFiltro);
         const qs = params.toString();
         const data = await fetchJson<AlunoListItem[]>(
           `/api/alunos${qs ? `?${qs}` : ""}`,
           { signal: controller.signal },
         );
+        if (requestId !== requestIdRef.current) return;
         setAlunos(data);
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (err instanceof Error && err.name === "AbortError") return;
+        if (isAbortError(err) || requestId !== requestIdRef.current) return;
         setError(
           err instanceof ApiRequestError
             ? err.message
@@ -71,14 +90,16 @@ export function AlunosTable({
               ? err.message
               : "Erro ao carregar alunos",
         );
+      } finally {
+        if (requestId === requestIdRef.current) setLoading(false);
       }
-    });
+    })();
 
     return () => controller.abort();
-  }, [debounced, momentoFiltro, refreshKey]);
+  }, [debounced, origemFiltro, refreshKey]);
 
-  const countLabel = isPending
-    ? "Buscando…"
+  const countLabel = loading
+    ? null
     : `${alunos.length} registro${alunos.length === 1 ? "" : "s"}`;
 
   const toggle = (id: string) =>
@@ -90,11 +111,11 @@ export function AlunosTable({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="text-base sm:text-lg">
-              Alunos e coletas
+              Consulta de entrevistas
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Consulte por ciclo de monitoramento (T1, T2, T3) e busque
-              registros
+              Aluno, família/comunidade, data, origem (planilha vs mobile) e
+              status
             </CardDescription>
           </div>
           <div className="relative w-full sm:max-w-sm">
@@ -102,35 +123,40 @@ export function AlunosTable({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar alunos…"
+              placeholder="Buscar por nome do aluno…"
               className="pl-9"
-              aria-label="Buscar alunos"
+              aria-label="Buscar por nome do aluno"
             />
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <MomentoChip
-            active={momentoFiltro === "TODOS"}
-            onClick={() => setMomentoFiltro("TODOS")}
-            label="Todos"
+          <FilterChip
+            active={origemFiltro === "TODOS"}
+            onClick={() => setOrigemFiltro("TODOS")}
+            label="Todas as origens"
           />
-          {momentos.map((m) => (
-            <MomentoChip
-              key={m.id}
-              active={momentoFiltro === m.codigo}
-              onClick={() => setMomentoFiltro(m.codigo)}
-              label={`${m.codigo} · ${formatDataCurta(m.dataReferencia)}`}
-              hint={`${m.totalPesquisas} pesquisa(s) · ${m.origemPadrao}`}
-            />
-          ))}
+          <FilterChip
+            active={origemFiltro === "PLANILHA"}
+            onClick={() => setOrigemFiltro("PLANILHA")}
+            label="Planilha"
+            hint="Importação / Excel (v1)"
+          />
+          <FilterChip
+            active={origemFiltro === "MOBILE"}
+            onClick={() => setOrigemFiltro("MOBILE")}
+            label="Mobile"
+            hint="Entrevistas sincronizadas do app (v2)"
+          />
         </div>
       </CardHeader>
       <CardContent className="p-3 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground sm:text-sm">
-          <span>{countLabel}</span>
+          <span>{countLabel ?? "\u00a0"}</span>
           <span className="truncate">
-            {momentoFiltro !== "TODOS" ? `Ciclo ${momentoFiltro}` : "Todos os ciclos"}
+            {origemFiltro !== "TODOS"
+              ? origemLabel(origemFiltro)
+              : "Todas as origens"}
             {debounced ? ` · “${debounced}”` : ""}
           </span>
         </div>
@@ -139,11 +165,21 @@ export function AlunosTable({
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
+        ) : loading ? (
+          <div
+            className="flex min-h-[12rem] flex-col items-center justify-center gap-3 py-10 text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            <p className="text-sm">Carregando entrevistas…</p>
+          </div>
         ) : (
           <>
             <div className="space-y-3 md:hidden">
               {alunos.map((aluno) => {
                 const open = expandedId === aluno.id;
+                const data = dataEntrevista(aluno);
                 return (
                   <article
                     key={aluno.id}
@@ -152,18 +188,25 @@ export function AlunosTable({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="mb-1 flex flex-wrap gap-1">
-                          {aluno.pesquisa?.momento ? (
-                            <Badge
-                              variant={
-                                aluno.pesquisa.momento.origemPadrao ===
-                                "PLANILHA"
-                                  ? "warning"
-                                  : "default"
-                              }
-                            >
-                              {aluno.pesquisa.momento.codigo}
-                            </Badge>
-                          ) : null}
+                          {aluno.pesquisa ? (
+                            <>
+                              <Badge
+                                variant={
+                                  aluno.pesquisa.origem === "PLANILHA"
+                                    ? "warning"
+                                    : "default"
+                                }
+                              >
+                                {origemLabel(aluno.pesquisa.origem)}
+                              </Badge>
+                              <Badge variant="success">Sincronizado</Badge>
+                              <Badge variant="secondary">
+                                v{aluno.pesquisa.versaoQuestionario}
+                              </Badge>
+                            </>
+                          ) : (
+                            <Badge variant="secondary">Sem entrevista</Badge>
+                          )}
                         </div>
                         <p className="font-mono text-[11px] text-muted-foreground">
                           {aluno.codigoAluno}
@@ -172,19 +215,16 @@ export function AlunosTable({
                           {aluno.nome}
                         </h4>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {aluno.familia.bairro} ·{" "}
-                          {aluno.pesquisa?.turno ?? "Sem turno"}
+                          {aluno.familia.codigoFamilia} ·{" "}
+                          {aluno.familia.comunidade || aluno.familia.bairro}
                         </p>
+                        {data ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Entrevista: {formatDataCurta(data)}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <Badge variant="secondary">
-                          {aluno.pesquisa
-                            ? formatPercent(
-                                aluno.pesquisa.frequenciaEscolarPct,
-                                0,
-                              )
-                            : "—"}
-                        </Badge>
                         <ToggleDetails
                           open={open}
                           onClick={() => toggle(aluno.id)}
@@ -202,9 +242,9 @@ export function AlunosTable({
                   </article>
                 );
               })}
-              {alunos.length === 0 && !isPending ? (
+              {alunos.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhum aluno encontrado neste ciclo.
+                  Nenhum aluno encontrado com estes filtros.
                 </p>
               ) : null}
             </div>
@@ -213,13 +253,13 @@ export function AlunosTable({
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-muted/70 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-3 font-medium">Ciclo</th>
-                    <th className="px-3 py-3 font-medium">Código</th>
                     <th className="px-3 py-3 font-medium">Aluno</th>
-                    <th className="px-3 py-3 font-medium">Família</th>
-                    <th className="px-3 py-3 font-medium">Bairro</th>
-                    <th className="px-3 py-3 font-medium">Turno</th>
-                    <th className="px-3 py-3 font-medium">Freq.</th>
+                    <th className="px-3 py-3 font-medium">
+                      Família / comunidade
+                    </th>
+                    <th className="px-3 py-3 font-medium">Data entrevista</th>
+                    <th className="px-3 py-3 font-medium">Origem</th>
+                    <th className="px-3 py-3 font-medium">Status</th>
                     <th className="px-3 py-3 font-medium" />
                   </tr>
                 </thead>
@@ -235,13 +275,13 @@ export function AlunosTable({
                       />
                     );
                   })}
-                  {alunos.length === 0 && !isPending ? (
+                  {alunos.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={6}
                         className="px-3 py-8 text-center text-muted-foreground"
                       >
-                        Nenhum aluno encontrado neste ciclo.
+                        Nenhum aluno encontrado com estes filtros.
                       </td>
                     </tr>
                   ) : null}
@@ -255,7 +295,7 @@ export function AlunosTable({
   );
 }
 
-function MomentoChip({
+function FilterChip({
   label,
   hint,
   active,
@@ -314,33 +354,55 @@ function AlunoRows({
   open: boolean;
   onToggle: () => void;
 }) {
+  const data = dataEntrevista(aluno);
+
   return (
     <>
       <tr className="border-t border-border hover:bg-muted/40">
         <td className="px-3 py-3">
-          {aluno.pesquisa?.momento ? (
+          <div className="min-w-0">
+            <p className="font-medium">{aluno.nome}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {aluno.codigoAluno}
+            </p>
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div className="min-w-0">
+            <p>{aluno.familia.codigoFamilia}</p>
+            <p className="text-xs text-muted-foreground">
+              {aluno.familia.comunidade}
+              {aluno.familia.bairro ? ` · ${aluno.familia.bairro}` : ""}
+            </p>
+          </div>
+        </td>
+        <td className="px-3 py-3 tabular-nums">
+          {data ? formatDataCurta(data) : "—"}
+        </td>
+        <td className="px-3 py-3">
+          {aluno.pesquisa ? (
             <Badge
               variant={
-                aluno.pesquisa.momento.origemPadrao === "PLANILHA"
-                  ? "warning"
-                  : "default"
+                aluno.pesquisa.origem === "PLANILHA" ? "warning" : "default"
               }
             >
-              {aluno.pesquisa.momento.codigo}
+              {origemLabel(aluno.pesquisa.origem)}
             </Badge>
           ) : (
             "—"
           )}
         </td>
-        <td className="px-3 py-3 font-mono text-xs">{aluno.codigoAluno}</td>
-        <td className="px-3 py-3 font-medium">{aluno.nome}</td>
-        <td className="px-3 py-3">{aluno.familia.codigoFamilia}</td>
-        <td className="px-3 py-3">{aluno.familia.bairro}</td>
-        <td className="px-3 py-3">{aluno.pesquisa?.turno ?? "—"}</td>
-        <td className="px-3 py-3 tabular-nums">
-          {aluno.pesquisa
-            ? formatPercent(aluno.pesquisa.frequenciaEscolarPct, 0)
-            : "—"}
+        <td className="px-3 py-3">
+          {aluno.pesquisa ? (
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="success">Sincronizado</Badge>
+              <Badge variant="secondary">
+                v{aluno.pesquisa.versaoQuestionario}
+              </Badge>
+            </div>
+          ) : (
+            <Badge variant="secondary">Sem entrevista</Badge>
+          )}
         </td>
         <td className="px-3 py-3 text-right">
           <ToggleDetails open={open} onClick={onToggle} />
@@ -348,7 +410,7 @@ function AlunoRows({
       </tr>
       {open ? (
         <tr className="border-t border-border bg-white/60">
-          <td colSpan={8} className="px-4 py-4">
+          <td colSpan={6} className="px-4 py-4">
             <AlunoDetailPanels aluno={aluno} />
           </td>
         </tr>

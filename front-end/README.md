@@ -1,5 +1,8 @@
 # Front-end — Next.js Dashboard & API REST
 
+> Visão geral do monorepo, Docker, Render e premissas: **[README na raiz](../README.md)**.  
+> Demo ponta a ponta: **[docs/roteiro-demonstracao.md](../docs/roteiro-demonstracao.md)**.
+
 ## Pré-requisitos
 
 1. PostgreSQL rodando (`back-end`) **ou** stack completa na raiz (`docker compose up --build`).

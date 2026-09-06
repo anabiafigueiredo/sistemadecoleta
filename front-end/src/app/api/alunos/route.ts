@@ -9,14 +9,22 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const q = params.get("q")?.trim() ?? "";
     const momento = params.get("momento")?.trim().toUpperCase() || null;
+    const origemRaw = params.get("origem")?.trim().toUpperCase() || null;
+    const origem =
+      origemRaw === "PLANILHA" || origemRaw === "MOBILE" ? origemRaw : null;
 
     const alunos = await prisma.aluno.findMany({
       where: {
         AND: [
-          momento
+          momento || origem
             ? {
                 pesquisasSocioeconomicas: {
-                  some: { momentoColeta: { codigo: momento } },
+                  some: {
+                    ...(momento
+                      ? { momentoColeta: { codigo: momento } }
+                      : {}),
+                    ...(origem ? { origem } : {}),
+                  },
                 },
               }
             : {},
@@ -51,15 +59,19 @@ export async function GET(request: Request) {
         familia: true,
         responsavel: true,
         pesquisasSocioeconomicas: {
-          where: momento
-            ? { momentoColeta: { codigo: momento } }
-            : undefined,
-          include: { momentoColeta: true },
+          where: {
+            ...(momento ? { momentoColeta: { codigo: momento } } : {}),
+            ...(origem ? { origem } : {}),
+          },
+          include: {
+            momentoColeta: true,
+            barreiras: { include: { barreira: true } },
+          },
           orderBy: { sincronizadoEm: "desc" },
           take: 1,
         },
       },
-      orderBy: { codigoAluno: "asc" },
+      orderBy: { nome: "asc" },
     });
 
     return ok(alunos.map(toAlunoListItem));

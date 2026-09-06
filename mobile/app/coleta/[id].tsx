@@ -13,6 +13,24 @@ import { PrimaryButton } from "@/components/BoolSwitch";
 import { deleteColeta, getColeta } from "@/lib/storage";
 import { isOnline, syncOne } from "@/lib/sync";
 import type { ColetaLocal } from "@/lib/types";
+import {
+  ACOMPANHAMENTO_FAMILIAR_OPTIONS,
+  ANO_SERIE_OPTIONS,
+  APOIO_PRIORITARIO_OPTIONS,
+  BARREIRA_OPTIONS,
+  BENEFICIO_SOCIAL_OPTIONS,
+  DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
+  EQUIPAMENTO_ESTUDO_OPTIONS,
+  ESCOLARIDADE_OPTIONS,
+  LOCAL_ESTUDO_OPTIONS,
+  MEIO_TRANSPORTE_OPTIONS,
+  PARENTESCO_OPTIONS,
+  SITUACAO_OCUPACIONAL_OPTIONS,
+  TIPO_ACESSO_INTERNET_OPTIONS,
+  TIPO_LOCALIDADE_OPTIONS,
+  TURNO_OPTIONS,
+  labelOf,
+} from "@/lib/opcoes-questionario";
 
 export default function DetalheColetaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,7 +79,8 @@ export default function DetalheColetaScreen() {
     );
   }
 
-  const { aluno, familia, responsavel, pesquisa, momento } = item.payload;
+  const { aluno, familia, responsavel, pesquisa, momento, barreiras } =
+    item.payload;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -94,6 +113,10 @@ export default function DetalheColetaScreen() {
         <Line label="Endereço" value={familia.endereco} />
         <Line label="Bairro" value={familia.bairro} />
         <Line label="Comunidade" value={familia.comunidade} />
+        <Line
+          label="Localidade"
+          value={labelOf(TIPO_LOCALIDADE_OPTIONS, familia.tipoLocalidade)}
+        />
         <Line label="Moradores" value={String(familia.qtdMoradores)} />
         <Line
           label="Renda"
@@ -103,7 +126,7 @@ export default function DetalheColetaScreen() {
           label="Benefício"
           value={
             familia.recebeBeneficioSocial
-              ? (familia.beneficioSocial ?? "Sim")
+              ? labelOf(BENEFICIO_SOCIAL_OPTIONS, familia.beneficioSocial)
               : "Não"
           }
         />
@@ -111,7 +134,7 @@ export default function DetalheColetaScreen() {
           label="Internet"
           value={
             familia.possuiInternetCasa
-              ? (familia.tipoAcessoInternet ?? "Sim")
+              ? labelOf(TIPO_ACESSO_INTERNET_OPTIONS, familia.tipoAcessoInternet)
               : "Não"
           }
         />
@@ -119,21 +142,48 @@ export default function DetalheColetaScreen() {
 
       <Block title="Responsável">
         <Line label="Nome" value={responsavel.nome} />
-        <Line label="Parentesco" value={responsavel.parentesco} />
+        <Line
+          label="Parentesco"
+          value={labelOf(PARENTESCO_OPTIONS, responsavel.parentesco)}
+        />
         <Line label="CPF" value={responsavel.cpf ?? "—"} />
         <Line label="Telefone" value={responsavel.telefone ?? "—"} />
         <Line label="E-mail" value={responsavel.email ?? "—"} />
+        <Line
+          label="Escolaridade"
+          value={labelOf(ESCOLARIDADE_OPTIONS, responsavel.escolaridade)}
+        />
+        <Line
+          label="Ocupação"
+          value={labelOf(
+            SITUACAO_OCUPACIONAL_OPTIONS,
+            responsavel.situacaoOcupacional,
+          )}
+        />
       </Block>
 
       <Block title="Pesquisa">
-        <Line label="Transporte" value={pesquisa.meioTransporteEscola} />
+        <Line
+          label="Transporte"
+          value={labelOf(MEIO_TRANSPORTE_OPTIONS, pesquisa.meioTransporteEscola)}
+        />
         <Line
           label="Deslocamento"
           value={`${pesquisa.tempoDeslocamentoMin} min`}
         />
-        <Line label="Frequência" value={`${pesquisa.frequenciaEscolarPct}%`} />
-        <Line label="Ano/série" value={pesquisa.anoSerie} />
-        <Line label="Turno" value={pesquisa.turno} />
+        <Line
+          label="Frequência"
+          value={
+            pesquisa.frequenciaEscolarPct == null
+              ? "—"
+              : `${pesquisa.frequenciaEscolarPct}%`
+          }
+        />
+        <Line
+          label="Ano/série"
+          value={labelOf(ANO_SERIE_OPTIONS, pesquisa.anoSerie)}
+        />
+        <Line label="Turno" value={labelOf(TURNO_OPTIONS, pesquisa.turno)} />
         <Line
           label="NEE"
           value={
@@ -143,6 +193,45 @@ export default function DetalheColetaScreen() {
           }
         />
         <Line label="Obs." value={pesquisa.observacao ?? "—"} />
+        <Line
+          label="Equipamento"
+          value={labelOf(EQUIPAMENTO_ESTUDO_OPTIONS, pesquisa.equipamentoEstudo)}
+        />
+        <Line
+          label="Disponib."
+          value={labelOf(
+            DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
+            pesquisa.disponibilidadeEquipamento,
+          )}
+        />
+        <Line
+          label="Local estudo"
+          value={labelOf(LOCAL_ESTUDO_OPTIONS, pesquisa.localEstudo)}
+        />
+        <Line
+          label="Acompanh."
+          value={labelOf(
+            ACOMPANHAMENTO_FAMILIAR_OPTIONS,
+            pesquisa.acompanhamentoFamiliar,
+          )}
+        />
+        <Line
+          label="Apoio"
+          value={labelOf(APOIO_PRIORITARIO_OPTIONS, pesquisa.apoioPrioritario)}
+        />
+      </Block>
+
+      <Block title="Barreiras">
+        <Line
+          label="Selecionadas"
+          value={
+            barreiras?.length
+              ? barreiras
+                  .map((c) => labelOf(BARREIRA_OPTIONS, c))
+                  .join(", ")
+              : "—"
+          }
+        />
       </Block>
 
       <PrimaryButton title="Editar" onPress={() => setEditing(true)} />

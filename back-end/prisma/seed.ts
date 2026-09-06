@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { PrismaClient, OrigemColeta } from "@prisma/client";
+import { PrismaClient, OrigemColeta } from "../generated/prisma";
 import { parseTsv } from "./etl/parse-tsv";
 import {
   cleanText,
@@ -39,6 +39,28 @@ const MOMENTOS_SEED = [
   },
 ] as const;
 
+const BARREIRAS_SEED = [
+  { codigo: "TRANSPORTE", nome: "Transporte", ordem: 1 },
+  { codigo: "SAUDE", nome: "Questões de saúde", ordem: 2 },
+  { codigo: "APRENDIZAGEM", nome: "Dificuldade de aprendizagem", ordem: 3 },
+  { codigo: "FINANCEIRA", nome: "Dificuldade financeira", ordem: 4 },
+  { codigo: "FALTA_INTERNET", nome: "Falta de internet", ordem: 5 },
+  { codigo: "FALTA_EQUIPAMENTO", nome: "Falta de equipamento", ordem: 6 },
+  { codigo: "TRABALHAR", nome: "Necessidade de trabalhar", ordem: 7 },
+  {
+    codigo: "CUIDAR_FAMILIARES",
+    nome: "Necessidade de cuidar de familiares",
+    ordem: 8,
+  },
+  {
+    codigo: "FALTA_ACOMPANHAMENTO",
+    nome: "Falta de acompanhamento nos estudos",
+    ordem: 9,
+  },
+  { codigo: "OUTRA", nome: "Outra", ordem: 10 },
+  { codigo: "NENHUMA", nome: "Nenhuma", ordem: 11 },
+] as const;
+
 async function ensureMomentosColeta() {
   for (const momento of MOMENTOS_SEED) {
     await prisma.momentoColeta.upsert({
@@ -57,6 +79,17 @@ async function ensureMomentosColeta() {
     where: { codigo: "T1" },
   });
   return t1;
+}
+
+async function ensureBarreiras() {
+  for (const barreira of BARREIRAS_SEED) {
+    await prisma.barreira.upsert({
+      where: { codigo: barreira.codigo },
+      create: { ...barreira },
+      update: { nome: barreira.nome, ordem: barreira.ordem },
+    });
+  }
+  return prisma.barreira.count();
 }
 
 async function upsertRecord(
@@ -118,6 +151,8 @@ async function upsertRecord(
     data: {
       alunoId: aluno.id,
       momentoColetaId,
+      origem: OrigemColeta.PLANILHA,
+      versaoQuestionario: 1,
       meioTransporteEscola: row.meioTransporteEscola,
       tempoDeslocamentoMin: row.tempoDeslocamentoMin,
       frequenciaEscolarPct: row.frequenciaEscolarPct,
@@ -168,6 +203,9 @@ async function main(): Promise<void> {
   const t1 = await ensureMomentosColeta();
   console.log(`📅 Momento T1 pronto (${t1.dataReferencia.toISOString().slice(0, 10)})`);
   console.log("📅 Momentos T2 e T3 reservados para ciclos futuros (mobile)\n");
+
+  const totalBarreiras = await ensureBarreiras();
+  console.log(`🚧 Catálogo de barreiras: ${totalBarreiras} opções\n`);
 
   console.log(`📄 Lendo: ${DADOS_PATH}`);
   const content = readFileSync(DADOS_PATH, "utf-8");

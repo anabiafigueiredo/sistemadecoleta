@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 import * as XLSX from "xlsx";
 
 const prisma = new PrismaClient();
@@ -67,9 +67,10 @@ async function main(): Promise<void> {
       tipo_acesso_internet: familia.tipoAcessoInternet ?? "",
       meio_transporte_escola: pesquisa?.meioTransporteEscola ?? "",
       tempo_deslocamento_min: pesquisa?.tempoDeslocamentoMin ?? "",
-      frequencia_escolar_pct: pesquisa
-        ? formatMoney(pesquisa.frequenciaEscolarPct)
-        : "",
+      frequencia_escolar_pct:
+        pesquisa?.frequenciaEscolarPct != null
+          ? formatMoney(pesquisa.frequenciaEscolarPct)
+          : "",
       ano_serie: pesquisa?.anoSerie ?? "",
       turno: pesquisa?.turno ?? "",
       necessidade_educacional_especial: pesquisa

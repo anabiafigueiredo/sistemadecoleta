@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -120,12 +121,21 @@ export default function SyncScreen() {
         </Text>
       </View>
 
-      <Text style={styles.title}>
-        Fila de pendências ({pending.length})
-      </Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>
+          Pendentes de sincronização ({pending.length})
+        </Text>
+        <Pressable
+          onPress={() => void refresh()}
+          disabled={loading || syncing}
+          style={styles.reloadBtn}
+        >
+          <Text style={styles.reloadText}>{loading ? "…" : "Recarregar"}</Text>
+        </Pressable>
+      </View>
       <Text style={styles.hint}>
-        Ao sincronizar, o app envia as pendências e remove registros que foram
-        excluídos no servidor.
+        Entrevistas salvas offline aguardando envio. Ao sincronizar, o app envia
+        a fila e remove registros excluídos no servidor.
       </Text>
 
       {lastResult ? (
@@ -190,7 +200,21 @@ const styles = StyleSheet.create({
     color: "#134E4A",
     textAlign: "center",
   },
-  title: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  title: { fontSize: 18, fontWeight: "700", color: "#0F172A", flex: 1 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  reloadBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#0F766E",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  reloadText: { color: "#0F766E", fontWeight: "700", fontSize: 13 },
   hint: { marginTop: 6, color: "#64748B", fontSize: 13, marginBottom: 8 },
   result: { marginBottom: 8, color: "#0F766E", fontWeight: "600" },
   empty: { textAlign: "center", color: "#64748B", marginTop: 24 },

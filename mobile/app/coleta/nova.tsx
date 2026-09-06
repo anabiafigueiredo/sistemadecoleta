@@ -3,8 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ColetaForm } from "@/components/ColetaForm";
 
 /**
- * Sempre remonta o formulário vazio ao focar a aba "Coletar"
- * (nova coleta não reaproveita dados da anterior).
+ * Sempre remonta o formulário vazio ao abrir Nova entrevista.
  */
 export default function NovaColetaScreen() {
   const router = useRouter();
@@ -20,7 +19,12 @@ export default function NovaColetaScreen() {
     <ColetaForm
       key={formKey}
       onSaved={(item) => {
-        router.replace(`/coleta/${item.id}`);
+        // Sync ok → Realizadas; ainda pendente → fila de sync
+        if (item.sincronizado) {
+          router.replace("/entrevistas");
+        } else {
+          router.replace("/sync");
+        }
       }}
     />
   );

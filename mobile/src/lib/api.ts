@@ -50,21 +50,76 @@ export async function postColeta(payload: ColetaPayload): Promise<{
   return { pesquisaId: data?.pesquisa?.id ?? null };
 }
 
+/** Espelha `AlunoListItem` do front (GET /api/alunos). */
 export type AlunoRemote = {
+  id: string;
   codigoAluno: string;
+  nome: string;
+  dataNascimento: string | null;
+  sexo: string | null;
+  cpf: string | null;
+  familia: {
+    id: string;
+    codigoFamilia: string;
+    endereco: string;
+    bairro: string;
+    comunidade: string;
+    tipoLocalidade: string | null;
+    qtdMoradores: number;
+    rendaFamiliarMensal: number;
+    recebeBeneficioSocial: boolean;
+    beneficioSocial: string | null;
+    possuiInternetCasa: boolean;
+    tipoAcessoInternet: string | null;
+  };
+  responsavel: {
+    id: string;
+    nome: string;
+    parentesco: string;
+    cpf: string | null;
+    telefone: string | null;
+    email: string | null;
+    escolaridade: string | null;
+    situacaoOcupacional: string | null;
+  } | null;
   pesquisa: {
     id: string;
-    momento: { codigo: string };
+    origem: "PLANILHA" | "MOBILE";
+    versaoQuestionario: number;
+    meioTransporteEscola: string;
+    tempoDeslocamentoMin: number;
+    frequenciaEscolarPct: number | null;
+    anoSerie: string;
+    turno: string;
+    necessidadeEducacionalEspecial: boolean;
+    descricaoNecessidade: string | null;
+    observacao: string | null;
+    equipamentoEstudo: string | null;
+    disponibilidadeEquipamento: string | null;
+    localEstudo: string | null;
+    acompanhamentoFamiliar: string | null;
+    apoioPrioritario: string | null;
+    barreiras: Array<{ codigo: string; nome: string }>;
+    sincronizadoEm: string;
+    momento: {
+      id: string;
+      codigo: string;
+      titulo: string;
+      dataReferencia: string;
+      origemPadrao: "PLANILHA" | "MOBILE";
+    };
   } | null;
 };
 
 export async function fetchAlunos(params?: {
   q?: string;
   momento?: string;
+  origem?: "PLANILHA" | "MOBILE";
 }): Promise<AlunoRemote[]> {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
   if (params?.momento) qs.set("momento", params.momento);
+  if (params?.origem) qs.set("origem", params.origem);
   const url = `${API_URL}/api/alunos${qs.toString() ? `?${qs}` : ""}`;
   const res = await fetch(url);
   return parseEnvelope<AlunoRemote[]>(res);

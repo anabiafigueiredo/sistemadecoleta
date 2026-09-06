@@ -1,4 +1,22 @@
-/** Payload alinhado a POST /api/coleta (docs/05-api-mobile.md) */
+/** Payload alinhado a POST /api/coleta */
+
+import type {
+  AcompanhamentoFamiliarValue,
+  AnoSerieValue,
+  ApoioPrioritarioValue,
+  BarreiraValue,
+  BeneficioSocialValue,
+  DisponibilidadeEquipamentoValue,
+  EquipamentoEstudoValue,
+  EscolaridadeValue,
+  LocalEstudoValue,
+  MeioTransporteValue,
+  ParentescoValue,
+  SituacaoOcupacionalValue,
+  TipoAcessoInternetValue,
+  TipoLocalidadeValue,
+  TurnoValue,
+} from "@/lib/opcoes-questionario";
 
 export type MomentoPayload = {
   codigo: string;
@@ -11,39 +29,51 @@ export type FamiliaPayload = {
   endereco: string;
   bairro: string;
   comunidade: string;
+  tipoLocalidade: TipoLocalidadeValue;
   qtdMoradores: number;
   rendaFamiliarMensal: number;
   recebeBeneficioSocial: boolean;
-  beneficioSocial?: string | null;
+  beneficioSocial?: BeneficioSocialValue | null;
   possuiInternetCasa: boolean;
-  tipoAcessoInternet?: string | null;
+  tipoAcessoInternet?: TipoAcessoInternetValue | null;
 };
 
 export type AlunoPayload = {
   codigoAluno: string;
   nome: string;
-  dataNascimento?: string | null;
+  /** ISO YYYY-MM-DD — obrigatório nas coletas mobile (B-08). */
+  dataNascimento: string;
+  /** Opcional estruturado (M/F). */
   sexo?: "M" | "F" | null;
+  /** Opcional; quando informado, deve ser CPF válido. */
   cpf?: string | null;
 };
 
 export type ResponsavelPayload = {
   nome: string;
-  parentesco: string;
+  parentesco: ParentescoValue;
   cpf?: string | null;
   telefone?: string | null;
   email?: string | null;
+  escolaridade: EscolaridadeValue;
+  situacaoOcupacional: SituacaoOcupacionalValue;
 };
 
 export type PesquisaPayload = {
-  meioTransporteEscola: string;
+  meioTransporteEscola: MeioTransporteValue;
   tempoDeslocamentoMin: number;
-  frequenciaEscolarPct: number;
-  anoSerie: string;
-  turno: string;
+  /** Sempre null nas coletas mobile — dado administrativo. */
+  frequenciaEscolarPct?: number | null;
+  anoSerie: AnoSerieValue;
+  turno: TurnoValue;
   necessidadeEducacionalEspecial: boolean;
   descricaoNecessidade?: string | null;
   observacao?: string | null;
+  equipamentoEstudo: EquipamentoEstudoValue;
+  disponibilidadeEquipamento: DisponibilidadeEquipamentoValue;
+  localEstudo: LocalEstudoValue;
+  acompanhamentoFamiliar: AcompanhamentoFamiliarValue;
+  apoioPrioritario: ApoioPrioritarioValue;
 };
 
 export type ColetaPayload = {
@@ -52,6 +82,8 @@ export type ColetaPayload = {
   aluno: AlunoPayload;
   responsavel: ResponsavelPayload;
   pesquisa: PesquisaPayload;
+  /** Códigos do catálogo de barreiras (v2). */
+  barreiras: BarreiraValue[];
 };
 
 /** Registro local (offline-first) */
@@ -72,28 +104,36 @@ export type ColetaFormState = {
   endereco: string;
   bairro: string;
   comunidade: string;
+  tipoLocalidade: TipoLocalidadeValue | "";
   qtdMoradores: string;
   rendaFamiliarMensal: string;
   recebeBeneficioSocial: boolean;
-  beneficioSocial: string;
+  beneficioSocial: BeneficioSocialValue | "";
   possuiInternetCasa: boolean;
-  tipoAcessoInternet: string;
+  tipoAcessoInternet: TipoAcessoInternetValue | "";
   codigoAluno: string;
   nomeAluno: string;
   dataNascimento: string;
   sexo: "" | "M" | "F";
   cpfAluno: string;
   nomeResponsavel: string;
-  parentesco: string;
+  parentesco: ParentescoValue | "";
   cpfResponsavel: string;
   telefone: string;
   email: string;
-  meioTransporteEscola: string;
+  escolaridade: EscolaridadeValue | "";
+  situacaoOcupacional: SituacaoOcupacionalValue | "";
+  meioTransporteEscola: MeioTransporteValue | "";
   tempoDeslocamentoMin: string;
-  frequenciaEscolarPct: string;
-  anoSerie: string;
-  turno: string;
+  anoSerie: AnoSerieValue | "";
+  turno: TurnoValue | "";
   necessidadeEducacionalEspecial: boolean;
   descricaoNecessidade: string;
   observacao: string;
+  equipamentoEstudo: EquipamentoEstudoValue | "";
+  disponibilidadeEquipamento: DisponibilidadeEquipamentoValue | "";
+  localEstudo: LocalEstudoValue | "";
+  acompanhamentoFamiliar: AcompanhamentoFamiliarValue | "";
+  apoioPrioritario: ApoioPrioritarioValue | "";
+  barreiras: BarreiraValue[];
 };

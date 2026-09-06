@@ -1,6 +1,9 @@
 # App Mobile — Coleta Escolar (Expo + Offline-First)
 
-Aplicativo React Native (Expo **SDK 57**) para coleta socioeconômica de campo, alinhado à API `POST /api/coleta` (`docs/05-api-mobile.md`).
+> Visão geral do monorepo e como subir API/banco: **[README na raiz](../README.md)**.  
+> Checklist de demo: **[docs/roteiro-demonstracao.md](../docs/roteiro-demonstracao.md)**.
+
+Aplicativo React Native (Expo **SDK 57**) para coleta socioeconômica de campo, alinhado à API `POST /api/coleta`.
 
 ```
 Salvar no aparelho (UUID + sincronizado:false)
@@ -9,22 +12,40 @@ Salvar no aparelho (UUID + sincronizado:false)
         └─ Offline → fila local → Sync automático (NetInfo) / manual
 ```
 
-## Estrutura
+## Estrutura (doc §3)
+
+```
+Abas:
+├── Início              → Nova entrevista · Realizadas · Pendentes (§3.1)
+├── Planilha            → registros T1 (API, origem PLANILHA)
+├── Realizadas          → entrevistas sync no aparelho
+└── Pendentes           → fila offline → sync
+
+Nova entrevista (§3.2):
+1. Identificação do aluno
+2. Familiar entrevistado e residência
+3. Contexto socioeconômico
+4. Contexto educacional familiar
+5. Revisão e confirmação → Salvar e sincronizar
+```
 
 ```
 mobile/
 ├── app/                      # Expo Router (telas)
 │   ├── _layout.tsx           # Tabs + auto-sync NetInfo
-│   ├── index.tsx             # Lista + busca em tempo real
-│   ├── sync.tsx              # Fila de pendências + sync em lote
+│   ├── index.tsx             # Home §3.1
+│   ├── planilha.tsx          # Lista planilha (API)
+│   ├── entrevistas.tsx       # Realizadas (local sync)
+│   ├── sync.tsx              # Pendentes
 │   └── coleta/
-│       ├── nova.tsx          # Nova coleta
-│       └── [id].tsx          # Detalhe / editar / sync unitário
+│       ├── nova.tsx          # Nova entrevista (wizard)
+│       └── [id].tsx          # Detalhe / editar
 ├── src/
 │   ├── components/
-│   │   ├── ColetaForm.tsx    # Formulário completo + validação + save/sync
+│   │   ├── ColetaForm.tsx    # Wizard + validação + save/sync
 │   │   ├── Field.tsx
 │   │   ├── Segmented.tsx
+│   │   ├── MultiSelectChips.tsx
 │   │   └── BoolSwitch.tsx
 │   ├── hooks/
 │   │   ├── useColetas.ts
@@ -32,11 +53,12 @@ mobile/
 │   └── lib/
 │       ├── api.ts            # Cliente HTTP
 │       ├── config.ts         # API_URL
-│       ├── masks.ts          # CPF, telefone, moeda
-│       ├── storage.ts        # AsyncStorage (UUID + sincronizado)
-│       ├── sync.ts           # NetInfo + fila
+│       ├── masks.ts
+│       ├── storage.ts
+│       ├── sync.ts
 │       ├── types.ts
-│       └── validation.ts     # Zod (espelha regras da API)
+│       ├── opcoes-questionario.ts
+│       └── validation.ts
 ├── app.json
 ├── package.json
 └── .env.example

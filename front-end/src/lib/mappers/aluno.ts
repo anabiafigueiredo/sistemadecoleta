@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma";
 import type { AlunoListItem } from "@/lib/types";
 
 type AlunoWithRelations = Prisma.AlunoGetPayload<{
@@ -6,7 +6,10 @@ type AlunoWithRelations = Prisma.AlunoGetPayload<{
     familia: true;
     responsavel: true;
     pesquisasSocioeconomicas: {
-      include: { momentoColeta: true };
+      include: {
+        momentoColeta: true;
+        barreiras: { include: { barreira: true } };
+      };
     };
   };
 }>;
@@ -31,6 +34,7 @@ export function toAlunoListItem(aluno: AlunoWithRelations): AlunoListItem {
       endereco: aluno.familia.endereco,
       bairro: aluno.familia.bairro,
       comunidade: aluno.familia.comunidade,
+      tipoLocalidade: aluno.familia.tipoLocalidade,
       qtdMoradores: aluno.familia.qtdMoradores,
       rendaFamiliarMensal: Number(aluno.familia.rendaFamiliarMensal),
       recebeBeneficioSocial: aluno.familia.recebeBeneficioSocial,
@@ -46,20 +50,38 @@ export function toAlunoListItem(aluno: AlunoWithRelations): AlunoListItem {
           cpf: aluno.responsavel.cpf,
           telefone: aluno.responsavel.telefone,
           email: aluno.responsavel.email,
+          escolaridade: aluno.responsavel.escolaridade,
+          situacaoOcupacional: aluno.responsavel.situacaoOcupacional,
         }
       : null,
     pesquisa: pesquisa
       ? {
           id: pesquisa.id,
+          origem: pesquisa.origem,
+          versaoQuestionario: pesquisa.versaoQuestionario,
           meioTransporteEscola: pesquisa.meioTransporteEscola,
           tempoDeslocamentoMin: pesquisa.tempoDeslocamentoMin,
-          frequenciaEscolarPct: Number(pesquisa.frequenciaEscolarPct),
+          frequenciaEscolarPct:
+            pesquisa.frequenciaEscolarPct == null
+              ? null
+              : Number(pesquisa.frequenciaEscolarPct),
           anoSerie: pesquisa.anoSerie,
           turno: pesquisa.turno,
           necessidadeEducacionalEspecial:
             pesquisa.necessidadeEducacionalEspecial,
           descricaoNecessidade: pesquisa.descricaoNecessidade,
           observacao: pesquisa.observacao,
+          equipamentoEstudo: pesquisa.equipamentoEstudo,
+          disponibilidadeEquipamento: pesquisa.disponibilidadeEquipamento,
+          localEstudo: pesquisa.localEstudo,
+          acompanhamentoFamiliar: pesquisa.acompanhamentoFamiliar,
+          apoioPrioritario: pesquisa.apoioPrioritario,
+          barreiras: (pesquisa.barreiras ?? [])
+            .map((pb) => ({
+              codigo: pb.barreira.codigo,
+              nome: pb.barreira.nome,
+            }))
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
           sincronizadoEm: pesquisa.sincronizadoEm.toISOString(),
           momento: {
             id: pesquisa.momentoColeta.id,
