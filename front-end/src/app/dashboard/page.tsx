@@ -159,13 +159,13 @@ export default function DashboardPage() {
       <header className="dashboard-header relative overflow-hidden rounded-xl border border-border px-4 py-5 sm:rounded-2xl sm:px-8 sm:py-8">
         <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
           <div className="min-w-0 max-w-2xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent sm:text-xs sm:tracking-[0.2em]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent sm:text-xs">
               Levantamento socioeconômico
             </p>
-            <h1 className="font-display mt-1.5 text-2xl font-semibold tracking-tight text-foreground sm:mt-2 sm:text-4xl">
+            <h1 className="mt-1.5 text-[32px] font-extrabold tracking-tight text-foreground sm:mt-2 sm:text-[42px]">
               Colégio Comunitário
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground sm:mt-3 sm:text-[15px]">
               Painel de monitoramento educacional e social das famílias e alunos
               atendidos.
             </p>

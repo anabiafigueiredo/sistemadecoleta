@@ -6,6 +6,7 @@ import {
   View,
   Switch,
 } from "react-native";
+import { colors, fontBody, fontLabel } from "@/theme";
 
 type Props = {
   label: string;
@@ -30,8 +31,8 @@ export function BoolSwitch({
         <Switch
           value={value}
           onValueChange={onChange}
-          trackColor={{ false: "#CBD5E1", true: "#5EEAD4" }}
-          thumbColor={value ? "#0F766E" : "#F8FAFC"}
+          trackColor={{ false: colors.border, true: colors.accent }}
+          thumbColor={value ? colors.primary : colors.background}
         />
       </View>
     </View>
@@ -66,7 +67,7 @@ export function PrimaryButton({
       {loading ? (
         <View style={styles.btnLoadingRow}>
           <ActivityIndicator
-            color={variant === "secondary" ? "#0F766E" : "#FFFFFF"}
+            color={variant === "secondary" ? colors.primary : colors.white}
           />
           <Text
             style={[
@@ -98,25 +99,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  label: { fontSize: 13, fontWeight: "600", color: "#334155", flex: 1 },
+  label: { fontSize: 13, ...fontLabel, color: colors.text, flex: 1 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  hint: { color: "#64748B", fontSize: 13 },
+  hint: { color: colors.textSecondary, fontSize: 13, ...fontBody },
   btn: {
-    backgroundColor: "#0F766E",
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 8,
   },
   btnSecondary: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#0F766E",
+    borderColor: colors.primary,
   },
-  btnDanger: { backgroundColor: "#B91C1C" },
+  btnDanger: { backgroundColor: colors.error },
   btnDisabled: { opacity: 0.55 },
-  btnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
-  btnTextSecondary: { color: "#0F766E" },
+  btnText: { color: colors.white, ...fontLabel, fontSize: 16 },
+  btnTextSecondary: { color: colors.primary },
   btnLoadingRow: {
     flexDirection: "row",
     alignItems: "center",

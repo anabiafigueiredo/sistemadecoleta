@@ -1,4 +1,5 @@
 import { Pressable, Text, StyleSheet, View } from "react-native";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 type Option<T extends string> = { value: T; label: string };
 
@@ -48,25 +49,25 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: 12 },
   label: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
+    ...fontTitle,
+    color: colors.text,
     marginBottom: 6,
   },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.background,
   },
   chipActive: {
-    backgroundColor: "#0F766E",
-    borderColor: "#0F766E",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
-  chipText: { color: "#475569", fontWeight: "600", fontSize: 13 },
-  chipTextActive: { color: "#FFFFFF" },
-  hint: { marginTop: 4, color: "#94A3B8", fontSize: 12 },
-  error: { marginTop: 4, color: "#DC2626", fontSize: 12 },
+  chipText: { color: colors.textSecondary, ...fontLabel, fontSize: 13 },
+  chipTextActive: { color: colors.white },
+  hint: { marginTop: 4, color: colors.textDisabled, fontSize: 12, ...fontBody },
+  error: { marginTop: 4, color: colors.error, fontSize: 12, ...fontBody },
 });

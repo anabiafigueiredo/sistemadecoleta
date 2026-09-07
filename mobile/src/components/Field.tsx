@@ -6,6 +6,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
+import { colors, fontBody, fontLabel } from "@/theme";
 
 type Props = TextInputProps & {
   label: string;
@@ -18,7 +19,7 @@ export function Field({ label, error, containerStyle, style, ...rest }: Props) {
     <View style={[styles.wrap, containerStyle] as never}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.textDisabled}
         style={[styles.input, error ? styles.inputError : null, style]}
         {...rest}
       />
@@ -31,20 +32,21 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: 12 },
   label: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
+    ...fontLabel,
+    color: colors.text,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: "#0F172A",
+    color: colors.text,
+    ...fontBody,
   },
-  inputError: { borderColor: "#DC2626" },
-  error: { marginTop: 4, color: "#DC2626", fontSize: 12 },
+  inputError: { borderColor: colors.error },
+  error: { marginTop: 4, color: colors.error, fontSize: 12, ...fontBody },
 });

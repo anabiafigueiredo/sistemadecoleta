@@ -34,6 +34,7 @@ import {
   labelOf,
   labelsOf,
 } from "@/lib/opcoes-questionario";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 export default function DetalheColetaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,7 +60,7 @@ export default function DetalheColetaScreen() {
   );
 
   if (loading) {
-    return <ActivityIndicator style={{ marginTop: 40 }} color="#0F766E" />;
+    return <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />;
   }
 
   if (!item) {
@@ -330,29 +331,28 @@ function Line({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, backgroundColor: "#F1F5F9" },
+  content: { padding: 16, backgroundColor: colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   status: {
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
   },
-  statusOk: { backgroundColor: "#D1FAE5" },
-  statusPending: { backgroundColor: "#FFEDD5" },
-  statusText: { fontWeight: "700", color: "#134E4A" },
-  error: { marginTop: 6, color: "#B91C1C", fontSize: 12 },
+  statusOk: { backgroundColor: colors.primarySoft },
+  statusPending: { backgroundColor: colors.warningBg },
+  statusText: { ...fontLabel, color: colors.primary },
   block: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
   blockTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#0F766E",
+    ...fontTitle,
+    color: colors.primary,
     marginBottom: 8,
   },
   line: {
@@ -361,6 +361,18 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 4,
   },
-  lineLabel: { color: "#64748B", fontSize: 13, width: 110 },
-  lineValue: { color: "#0F172A", fontSize: 13, flex: 1, textAlign: "right" },
+  lineLabel: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    width: 110,
+    ...fontBody,
+  },
+  lineValue: {
+    color: colors.text,
+    fontSize: 13,
+    flex: 1,
+    textAlign: "right",
+    ...fontBody,
+  },
+  error: { marginTop: 6, color: colors.error, fontSize: 12, ...fontBody },
 });

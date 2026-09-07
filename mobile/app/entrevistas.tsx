@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useColetas } from "@/hooks/useColetas";
 import { listPending } from "@/lib/storage";
 import type { ColetaLocal } from "@/lib/types";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 /** Entrevistas já sincronizadas neste aparelho (doc §3.1). */
 export default function EntrevistasRealizadasScreen() {
@@ -61,13 +62,13 @@ export default function EntrevistasRealizadasScreen() {
       <TextInput
         style={styles.search}
         placeholder="Buscar por nome ou código…"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.textDisabled}
         value={query}
         onChangeText={setQuery}
       />
 
       {loading && realizadas.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color="#0F766E" />
+        <ActivityIndicator style={{ marginTop: 24 }} color={colors.primary} />
       ) : (
         <FlatList
           data={realizadas}
@@ -134,7 +135,7 @@ function ColetaRow({ item }: { item: ColetaLocal }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
+  container: { flex: 1, backgroundColor: colors.background },
   topRow: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -145,50 +146,52 @@ const styles = StyleSheet.create({
   hint: {
     flex: 1,
     fontSize: 13,
-    color: "#64748B",
+    color: colors.textSecondary,
     lineHeight: 18,
+    ...fontBody,
   },
   reloadBtn: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#0F766E",
+    borderColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
   },
   reloadPressed: { opacity: 0.7 },
-  reloadText: { color: "#0F766E", fontWeight: "700", fontSize: 13 },
+  reloadText: { color: colors.primary, ...fontLabel, fontSize: 13 },
   search: {
     margin: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#0F172A",
+    color: colors.text,
+    ...fontBody,
   },
   list: { padding: 12, paddingBottom: 40 },
   emptyWrap: { flexGrow: 1, justifyContent: "center", padding: 24 },
   emptyBox: { alignItems: "center", gap: 10 },
-  empty: { textAlign: "center", color: "#0F172A", fontSize: 15, fontWeight: "600" },
-  emptyHint: { textAlign: "center", color: "#64748B", fontSize: 13, lineHeight: 18 },
+  empty: { textAlign: "center", color: colors.text, fontSize: 15, ...fontTitle },
+  emptyHint: { textAlign: "center", color: colors.textSecondary, fontSize: 13, lineHeight: 18, ...fontBody },
   linkBtn: {
     marginTop: 4,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
-    backgroundColor: "#0F766E",
+    backgroundColor: colors.primary,
   },
-  linkText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  linkText: { color: colors.white, ...fontLabel, fontSize: 13 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -196,13 +199,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", flex: 1 },
-  meta: { marginTop: 4, color: "#64748B", fontSize: 13 },
+  name: { fontSize: 16, ...fontTitle, color: colors.text, flex: 1 },
+  meta: { marginTop: 4, color: colors.textSecondary, fontSize: 13, ...fontBody },
   badge: {
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  badgeOk: { backgroundColor: "#D1FAE5" },
-  badgeText: { fontSize: 11, fontWeight: "700", color: "#134E4A" },
+  badgeOk: { backgroundColor: colors.primarySoft },
+  badgeText: { fontSize: 11, ...fontLabel, color: colors.primary },
 });

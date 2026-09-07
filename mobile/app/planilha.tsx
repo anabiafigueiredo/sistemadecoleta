@@ -13,6 +13,7 @@ import { AlunoDetailPanels } from "@/components/AlunoDetailPanels";
 import { fetchAlunos, type AlunoRemote } from "@/lib/api";
 import { useNetwork } from "@/hooks/useNetwork";
 import { API_URL } from "@/lib/config";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 /**
  * Registros da planilha (T1 / origem PLANILHA) vindos da API.
@@ -94,14 +95,14 @@ export default function PlanilhaScreen() {
       <TextInput
         style={styles.search}
         placeholder="Buscar por nome do aluno…"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.textDisabled}
         value={query}
         onChangeText={setQuery}
         editable={online}
       />
 
       {loading && items.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color="#0F766E" />
+        <ActivityIndicator style={{ marginTop: 24 }} color={colors.primary} />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
       ) : (
@@ -178,19 +179,19 @@ function PlanilhaRow({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
+  container: { flex: 1, backgroundColor: colors.background },
   banner: {
     marginHorizontal: 12,
     marginTop: 12,
     borderRadius: 10,
     padding: 10,
   },
-  online: { backgroundColor: "#CCFBF1" },
-  offline: { backgroundColor: "#FEF3C7" },
+  online: { backgroundColor: colors.primarySoft },
+  offline: { backgroundColor: colors.warningBg },
   bannerText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#134E4A",
+    ...fontLabel,
+    color: colors.primary,
     textAlign: "center",
   },
   topRow: {
@@ -203,45 +204,47 @@ const styles = StyleSheet.create({
   hint: {
     flex: 1,
     fontSize: 13,
-    color: "#64748B",
+    color: colors.textSecondary,
     lineHeight: 18,
+    ...fontBody,
   },
   reloadBtn: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#0F766E",
+    borderColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
   },
-  reloadText: { color: "#0F766E", fontWeight: "700", fontSize: 13 },
+  reloadText: { color: colors.primary, ...fontLabel, fontSize: 13 },
   search: {
     margin: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#0F172A",
+    color: colors.text,
+    ...fontBody,
   },
   list: { padding: 12, paddingBottom: 40 },
   emptyWrap: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  empty: { textAlign: "center", color: "#64748B", fontSize: 15 },
+  empty: { textAlign: "center", color: colors.textSecondary, fontSize: 15, ...fontBody },
   error: {
     margin: 16,
-    color: "#B91C1C",
+    color: colors.error,
     textAlign: "center",
     fontSize: 14,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -255,26 +258,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  name: { fontSize: 16, fontWeight: "700", color: "#0F172A", flex: 1 },
-  chevron: { fontSize: 11, color: "#94A3B8" },
-  meta: { marginTop: 4, color: "#64748B", fontSize: 13 },
+  name: { fontSize: 16, ...fontTitle, color: colors.text, flex: 1 },
+  chevron: { fontSize: 11, color: colors.textDisabled },
+  meta: { marginTop: 4, color: colors.textSecondary, fontSize: 13, ...fontBody },
   badge: {
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: "#FEF3C7",
+    backgroundColor: colors.warningBg,
   },
-  badgeText: { fontSize: 11, fontWeight: "700", color: "#92400E" },
+  badgeText: { fontSize: 11, ...fontLabel, color: colors.warningText },
   detailsHint: {
     marginTop: 8,
     fontSize: 12,
-    fontWeight: "600",
-    color: "#0F766E",
+    ...fontLabel,
+    color: colors.primary,
   },
   details: {
     marginTop: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: colors.border,
     paddingTop: 4,
   },
 });

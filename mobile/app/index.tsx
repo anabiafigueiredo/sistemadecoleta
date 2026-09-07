@@ -9,6 +9,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useNetwork } from "@/hooks/useNetwork";
 import { listColetas, listPending } from "@/lib/storage";
 import { API_URL } from "@/lib/config";
+import { colors, fontBody, fontEmphasis, fontLabel, fontTitle } from "@/theme";
 
 /**
  * Tela inicial (doc §3.1):
@@ -49,7 +50,7 @@ export default function HomeScreen() {
       <MenuCard
         title="Nova entrevista"
         description="Iniciar coleta (identificação → familiar → socioeconômico → educacional → revisão)"
-        accent="#0F766E"
+        accent={colors.primary}
         onPress={() => router.push("/coleta/nova")}
       />
       <MenuCard
@@ -59,7 +60,7 @@ export default function HomeScreen() {
             ? "Entrevistas já sincronizadas neste aparelho"
             : `${realizadasCount} entrevista(s) sincronizada(s)`
         }
-        accent="#1D4E89"
+        accent={colors.accent}
         onPress={() => router.push("/entrevistas")}
       />
       <MenuCard
@@ -69,7 +70,7 @@ export default function HomeScreen() {
             ? "Fila vazia — nada aguardando envio"
             : `${pendingCount} pendente(s) na fila`
         }
-        accent="#C2410C"
+        accent={colors.error}
         badge={pendingCount > 0 ? String(pendingCount) : undefined}
         onPress={() => router.push("/sync")}
       />
@@ -117,39 +118,40 @@ function MenuCard({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9", padding: 16 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 16 },
   banner: {
     borderRadius: 10,
     padding: 10,
     marginBottom: 16,
   },
-  online: { backgroundColor: "#CCFBF1" },
-  offline: { backgroundColor: "#FEF3C7" },
+  online: { backgroundColor: colors.primarySoft },
+  offline: { backgroundColor: colors.warningBg },
   bannerText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#134E4A",
+    ...fontLabel,
+    color: colors.primary,
     textAlign: "center",
   },
   heading: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#0F172A",
+    ...fontTitle,
+    color: colors.text,
     marginBottom: 6,
   },
   subheading: {
     fontSize: 14,
-    color: "#64748B",
+    color: colors.textSecondary,
     marginBottom: 18,
     lineHeight: 20,
+    ...fontBody,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
     borderLeftWidth: 5,
   },
   cardPressed: { opacity: 0.88 },
@@ -159,8 +161,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
-  cardTitle: { fontSize: 17, fontWeight: "700", color: "#0F172A", flex: 1 },
-  cardDesc: { marginTop: 6, fontSize: 13, color: "#64748B", lineHeight: 18 },
+  cardTitle: { fontSize: 17, ...fontTitle, color: colors.text, flex: 1 },
+  cardDesc: {
+    marginTop: 6,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    ...fontBody,
+  },
   badge: {
     minWidth: 28,
     height: 28,
@@ -169,11 +177,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 8,
   },
-  badgeText: { color: "#FFFFFF", fontWeight: "800", fontSize: 13 },
+  badgeText: { color: colors.white, ...fontEmphasis, fontSize: 13 },
   footerHint: {
     marginTop: 8,
     fontSize: 12,
-    color: "#94A3B8",
+    color: colors.textDisabled,
     textAlign: "center",
+    ...fontBody,
   },
 });
+

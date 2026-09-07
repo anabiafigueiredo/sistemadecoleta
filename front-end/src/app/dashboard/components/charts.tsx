@@ -50,17 +50,17 @@ const RendaBairroMap = dynamic(
 );
 
 const CHART_COLORS = [
-  "#0f766e",
-  "#1d4e89",
+  "#174E4A",
+  "#0A7A68",
+  "#7DB9AB",
+  "#0A4E46",
+  "#38796A",
   "#c2410c",
   "#ca8a04",
-  "#0e7490",
-  "#be123c",
-  "#365314",
   "#57534e",
 ];
 
-const LABEL_STYLE = { fill: "#3f4f48", fontSize: 11, fontWeight: 600 };
+const LABEL_STYLE = { fill: "#667085", fontSize: 11, fontWeight: 600 };
 
 /** Pizza só com poucas fatias; acima disso vira barras horizontais. */
 const PIE_MAX_CATEGORIES = 5;
@@ -314,7 +314,7 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <h2 className="text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">
           Visualizações prioritárias
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -459,7 +459,7 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <h2 className="text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">
           Complementares
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

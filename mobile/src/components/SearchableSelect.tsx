@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 type Option<T extends string> = {
   value: T;
@@ -110,7 +111,7 @@ export function SearchableSelect<T extends string>({
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar por nome, responsável ou código…"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textDisabled}
             autoFocus
             style={styles.search}
             clearButtonMode="while-editing"
@@ -153,29 +154,34 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: 12 },
   label: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
+    ...fontTitle,
+    color: colors.text,
     marginBottom: 6,
   },
   trigger: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  triggerError: { borderColor: "#F87171" },
-  triggerDisabled: { opacity: 0.65, backgroundColor: "#F8FAFC" },
-  triggerValue: { flex: 1, color: "#0F172A", fontSize: 15 },
-  triggerPlaceholder: { flex: 1, color: "#94A3B8", fontSize: 15 },
-  chevron: { color: "#64748B", fontSize: 14 },
-  hint: { marginTop: 4, color: "#94A3B8", fontSize: 12 },
-  error: { marginTop: 4, color: "#DC2626", fontSize: 12 },
-  modal: { flex: 1, backgroundColor: "#FFFFFF", paddingTop: 12 },
+  triggerError: { borderColor: colors.error },
+  triggerDisabled: { opacity: 0.65, backgroundColor: colors.background },
+  triggerValue: { flex: 1, color: colors.text, fontSize: 15, ...fontBody },
+  triggerPlaceholder: {
+    flex: 1,
+    color: colors.textDisabled,
+    fontSize: 15,
+    ...fontBody,
+  },
+  chevron: { color: colors.textSecondary, fontSize: 14, ...fontLabel },
+  hint: { marginTop: 4, color: colors.textDisabled, fontSize: 12, ...fontBody },
+  error: { marginTop: 4, color: colors.error, fontSize: 12, ...fontBody },
+  modal: { flex: 1, backgroundColor: colors.card, paddingTop: 12 },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -183,33 +189,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0F172A" },
-  close: { color: "#0F766E", fontWeight: "600", fontSize: 15 },
+  modalTitle: { fontSize: 17, ...fontTitle, color: colors.text },
+  close: { color: colors.primary, ...fontLabel, fontSize: 15 },
   search: {
     marginHorizontal: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: "#0F172A",
-    backgroundColor: "#F8FAFC",
+    color: colors.text,
+    backgroundColor: colors.background,
+    ...fontBody,
   },
   row: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border,
   },
-  rowActive: { backgroundColor: "#CCFBF1" },
-  rowText: { fontSize: 15, color: "#334155" },
-  rowTextActive: { color: "#0F766E", fontWeight: "700" },
+  rowActive: { backgroundColor: colors.primarySoft },
+  rowText: { fontSize: 15, color: colors.text, ...fontBody },
+  rowTextActive: { color: colors.primary, ...fontLabel },
   empty: {
     textAlign: "center",
-    color: "#94A3B8",
+    color: colors.textDisabled,
     paddingVertical: 32,
     fontSize: 14,
+    ...fontBody,
   },
 });

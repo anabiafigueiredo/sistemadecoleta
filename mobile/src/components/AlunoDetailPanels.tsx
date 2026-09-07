@@ -17,6 +17,7 @@ import {
   TURNO_OPTIONS,
   labelOf,
 } from "@/lib/opcoes-questionario";
+import { colors, fontBody, fontEmphasis, fontLabel } from "@/theme";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -201,18 +202,18 @@ const styles = StyleSheet.create({
   block: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     padding: 12,
   },
   blockTitle: {
     fontSize: 11,
-    fontWeight: "700",
+    ...fontLabel,
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: "#64748B",
+    color: colors.textSecondary,
     marginBottom: 6,
   },
-  line: { fontSize: 13, color: "#334155", marginTop: 2, lineHeight: 18 },
-  lineStrong: { fontWeight: "700", color: "#0F172A" },
+  line: { fontSize: 13, color: colors.text, marginTop: 2, lineHeight: 18, ...fontBody },
+  lineStrong: { ...fontEmphasis, color: colors.text },
 });

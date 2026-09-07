@@ -1,8 +1,16 @@
 import { Tabs, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useEffect } from "react";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { subscribeAutoSync } from "@/lib/sync";
+import { colors, fonts, fontLabel } from "@/theme";
 
 function HeaderBackHome() {
   const router = useRouter();
@@ -12,7 +20,7 @@ function HeaderBackHome() {
       hitSlop={10}
       style={{ paddingHorizontal: 12, paddingVertical: 6 }}
     >
-      <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
+      <Text style={[{ color: colors.white, fontSize: 16 }, fontLabel]}>
         ‹ Voltar
       </Text>
     </Pressable>
@@ -20,19 +28,52 @@ function HeaderBackHome() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   useEffect(() => subscribeAutoSync(), []);
+
+  if (!fontsLoaded) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <>
       <StatusBar style="light" />
       <Tabs
         screenOptions={{
-          headerStyle: { backgroundColor: "#0F766E" } as object,
-          headerTintColor: "#FFFFFF",
-          headerTitleStyle: { fontWeight: "700" } as object,
-          tabBarActiveTintColor: "#0F766E",
-          tabBarInactiveTintColor: "#64748B",
-          tabBarStyle: { borderTopColor: "#E2E8F0" } as object,
+          headerStyle: { backgroundColor: colors.primary } as object,
+          headerTintColor: colors.white,
+          headerTitleStyle: {
+            fontFamily: fonts.semibold,
+            fontWeight: "600",
+          } as object,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textSecondary,
+          tabBarLabelStyle: {
+            fontFamily: fonts.medium,
+            fontWeight: "500",
+            fontSize: 12,
+          } as object,
+          tabBarStyle: {
+            borderTopColor: colors.border,
+            backgroundColor: colors.card,
+          } as object,
         }}
       >
         <Tabs.Screen

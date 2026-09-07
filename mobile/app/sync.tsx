@@ -16,6 +16,7 @@ import { listPending } from "@/lib/storage";
 import { syncPending, type SyncResult } from "@/lib/sync";
 import type { ColetaLocal } from "@/lib/types";
 import { API_URL } from "@/lib/config";
+import { colors, fontBody, fontLabel, fontTitle } from "@/theme";
 
 export default function SyncScreen() {
   const { online } = useNetwork();
@@ -106,7 +107,7 @@ export default function SyncScreen() {
       <Modal visible={syncing} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <ActivityIndicator size="large" color="#0F766E" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.modalTitle}>Sincronizando…</Text>
             <Text style={styles.modalHint}>
               Enviando pendências e alinhando com o servidor
@@ -153,7 +154,7 @@ export default function SyncScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color="#0F766E" />
+        <ActivityIndicator style={{ marginTop: 24 }} color={colors.primary} />
       ) : (
         <FlatList
           style={{ marginTop: 16 }}
@@ -186,21 +187,21 @@ export default function SyncScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9", padding: 16 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 16 },
   banner: {
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
   },
-  online: { backgroundColor: "#CCFBF1" },
-  offline: { backgroundColor: "#FEF3C7" },
+  online: { backgroundColor: colors.primarySoft },
+  offline: { backgroundColor: colors.warningBg },
   bannerText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#134E4A",
+    ...fontLabel,
+    color: colors.primary,
     textAlign: "center",
   },
-  title: { fontSize: 18, fontWeight: "700", color: "#0F172A", flex: 1 },
+  title: { fontSize: 18, ...fontTitle, color: colors.text, flex: 1 },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -209,35 +210,35 @@ const styles = StyleSheet.create({
   reloadBtn: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#0F766E",
+    borderColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
   },
-  reloadText: { color: "#0F766E", fontWeight: "700", fontSize: 13 },
-  hint: { marginTop: 6, color: "#64748B", fontSize: 13, marginBottom: 8 },
-  result: { marginBottom: 8, color: "#0F766E", fontWeight: "600" },
-  empty: { textAlign: "center", color: "#64748B", marginTop: 24 },
+  reloadText: { color: colors.primary, ...fontLabel, fontSize: 13 },
+  hint: { marginTop: 6, color: colors.textSecondary, fontSize: 13, marginBottom: 8, ...fontBody },
+  result: { marginBottom: 8, color: colors.primary, ...fontTitle },
+  empty: { textAlign: "center", color: colors.textSecondary, marginTop: 24, ...fontBody },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
-  name: { fontWeight: "700", color: "#0F172A" },
-  meta: { marginTop: 4, color: "#64748B", fontSize: 12 },
-  error: { marginTop: 6, color: "#B91C1C", fontSize: 12 },
+  name: { ...fontTitle, color: colors.text },
+  meta: { marginTop: 4, color: colors.textSecondary, fontSize: 12, ...fontBody },
+  error: { marginTop: 6, color: colors.error, fontSize: 12, ...fontBody },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(20, 26, 31, 0.45)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
   },
   modalCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 28,
     paddingHorizontal: 24,
@@ -245,6 +246,6 @@ const styles = StyleSheet.create({
     minWidth: 240,
     gap: 10,
   },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0F172A" },
-  modalHint: { fontSize: 13, color: "#64748B", textAlign: "center" },
+  modalTitle: { fontSize: 17, ...fontTitle, color: colors.text },
+  modalHint: { fontSize: 13, color: colors.textSecondary, textAlign: "center", ...fontBody },
 });

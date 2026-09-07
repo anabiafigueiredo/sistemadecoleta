@@ -16,6 +16,7 @@ import { Segmented } from "@/components/Segmented";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { PrimaryButton } from "@/components/BoolSwitch";
+import { colors, fontBody, fontEmphasis, fontLabel, fontTitle } from "@/theme";
 import { gerarCodigoAluno, gerarCodigoFamilia, gerarCodigos } from "@/lib/codigos";
 import {
   applyAlunoLookupToForm,
@@ -144,7 +145,7 @@ function alertMessagesFromErrors(errors: ColetaFormErrors): {
 function CadastroBusyBanner({ message }: { message: string }) {
   return (
     <View style={styles.busyBanner} accessibilityRole="progressbar">
-      <ActivityIndicator color="#0F766E" />
+      <ActivityIndicator color={colors.primary} />
       <Text style={styles.busyBannerText}>{message}</Text>
     </View>
   );
@@ -1188,7 +1189,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
               value={form.comunidade}
               onChangeText={(t) => set("comunidade", t)}
               error={errors.comunidade}
-              placeholder="Se houver (ex.: comunidade ribeirinha)"
+              placeholder="Se houver"
             />
             <Segmented
               label="Tipo de localidade *"
@@ -1786,7 +1787,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
       {saving ? (
         <View style={styles.savingOverlay} pointerEvents="auto">
           <View style={styles.savingCard}>
-            <ActivityIndicator size="large" color="#0F766E" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.savingCardText}>Salvando coleta…</Text>
           </View>
         </View>
@@ -1802,8 +1803,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
   progressMeta: {
     flexDirection: "row",
@@ -1811,19 +1812,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
-  progressTitle: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
-  progressPct: { fontSize: 13, fontWeight: "600", color: "#0F766E" },
+  progressTitle: { fontSize: 14, ...fontTitle, color: colors.text },
+  progressPct: { fontSize: 13, ...fontEmphasis, color: colors.primary },
   progressTrack: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: colors.border,
     overflow: "hidden",
     marginBottom: 10,
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#0F766E",
+    backgroundColor: colors.primary,
   },
   stepChips: { flexDirection: "row", gap: 8, paddingBottom: 2 },
   stepChip: {
@@ -1832,48 +1833,50 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
   stepChipActive: {
-    backgroundColor: "#0F766E",
-    borderColor: "#0F766E",
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   stepChipDone: {
-    backgroundColor: "#CCFBF1",
-    borderColor: "#5EEAD4",
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.accent,
   },
-  stepChipText: { fontSize: 12, fontWeight: "700", color: "#64748B" },
-  stepChipTextDone: { color: "#0F766E" },
-  stepChipTextActive: { color: "#FFFFFF" },
+  stepChipText: { fontSize: 12, ...fontLabel, color: colors.textSecondary },
+  stepChipTextDone: { color: colors.primary },
+  stepChipTextActive: { color: colors.white },
   content: { padding: 16, paddingBottom: 40 },
   stepHeading: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#0F172A",
+    ...fontTitle,
+    color: colors.text,
     marginBottom: 6,
   },
   stepIntro: {
     fontSize: 13,
-    color: "#64748B",
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 14,
+    ...fontBody,
   },
   fieldHelp: {
     fontSize: 12,
-    color: "#64748B",
+    color: colors.textSecondary,
     lineHeight: 17,
     marginTop: -6,
     marginBottom: 12,
+    ...fontBody,
   },
   busyBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F0FDFA",
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: "#99F6E4",
+    borderColor: colors.accent,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -1882,8 +1885,8 @@ const styles = StyleSheet.create({
   busyBannerText: {
     flex: 1,
     fontSize: 13,
-    fontWeight: "600",
-    color: "#0F766E",
+    ...fontLabel,
+    color: colors.primary,
     lineHeight: 18,
   },
   formDimmed: {
@@ -1894,20 +1897,20 @@ const styles = StyleSheet.create({
   },
   savingOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(15, 23, 42, 0.28)",
+    backgroundColor: "rgba(20, 26, 31, 0.28)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
   },
   savingCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 14,
     paddingHorizontal: 24,
     paddingVertical: 20,
     alignItems: "center",
     gap: 12,
     minWidth: 180,
-    shadowColor: "#0F172A",
+    shadowColor: colors.text,
     shadowOpacity: 0.12,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -1915,28 +1918,33 @@ const styles = StyleSheet.create({
   },
   savingCardText: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#0F766E",
+    ...fontLabel,
+    color: colors.primary,
   },
   inputReadonly: {
-    backgroundColor: "#F1F5F9",
-    color: "#334155",
+    backgroundColor: colors.background,
+    color: colors.text,
   },
   reviewCard: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
     padding: 14,
     gap: 2,
   },
-  reviewHint: { fontSize: 13, color: "#64748B", marginBottom: 8 },
+  reviewHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    ...fontBody,
+  },
   reviewSection: {
     marginTop: 12,
     marginBottom: 4,
     fontSize: 15,
-    fontWeight: "700",
-    color: "#0F766E",
+    ...fontTitle,
+    color: colors.primary,
   },
   reviewRow: {
     flexDirection: "row",
@@ -1944,18 +1952,19 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: colors.border,
   },
   reviewLabel: {
     fontSize: 13,
-    color: "#64748B",
+    color: colors.textSecondary,
     flexShrink: 0,
     maxWidth: "42%",
+    ...fontBody,
   },
   reviewValue: {
     fontSize: 13,
-    color: "#0F172A",
-    fontWeight: "600",
+    color: colors.text,
+    ...fontBody,
     flex: 1,
     textAlign: "right",
   },
@@ -1966,3 +1975,4 @@ const styles = StyleSheet.create({
   },
   navHalf: { flex: 1 },
 });
+
