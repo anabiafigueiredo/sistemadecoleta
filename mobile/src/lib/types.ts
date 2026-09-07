@@ -68,8 +68,10 @@ export type PesquisaPayload = {
   anoSerie: AnoSerieValue;
   turno: TurnoValue;
   necessidadeEducacionalEspecial: boolean;
-  /** Códigos do catálogo NEE (até 2); null quando não tem NEE. */
+  /** Códigos do catálogo NEE (múltipla escolha); null quando não tem. */
   necessidadesEducacionais?: NecessidadeEducacionalValue[] | null;
+  /** Texto livre quando OUTRA está entre as necessidades. */
+  necessidadeOutraDescricao?: string | null;
   observacao?: string | null;
   /** Um ou mais equipamentos; NENHUM é exclusivo. */
   equipamentosEstudo: EquipamentoEstudoValue[];
@@ -137,6 +139,8 @@ export type ColetaFormState = {
   /** null = ainda não respondido */
   necessidadeEducacionalEspecial: boolean | null;
   necessidadesEducacionais: NecessidadeEducacionalValue[];
+  /** Texto livre quando OUTRA está selecionada. */
+  necessidadeOutraDescricao: string;
   observacao: string;
   equipamentosEstudo: EquipamentoEstudoValue[];
   disponibilidadeEquipamento: DisponibilidadeEquipamentoValue | "";

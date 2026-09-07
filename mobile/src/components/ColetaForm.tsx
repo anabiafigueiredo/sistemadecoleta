@@ -57,13 +57,13 @@ import {
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
-  EQUIPAMENTO_NENHUM,
+  EQUIPAMENTO_EXCLUSIVOS,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
   MAX_APOIOS_PRIORITARIOS,
-  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
   NECESSIDADE_EDUCACIONAL_OPTIONS,
+  NECESSIDADE_OUTRA,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
@@ -72,8 +72,8 @@ import {
   labelOf,
   labelsOf,
   toggleBarreira,
+  toggleEquipamentoEstudo,
   toggleExclusiveCode,
-  toggleMaxCodes,
 } from "@/lib/opcoes-questionario";
 
 const ETAPA_COLETA_OPTIONS = [
@@ -376,6 +376,13 @@ export function ColetaForm({ initial, onSaved }: Props) {
 
   async function onChangeOrigemAluno(next: OrigemCodigo) {
     if (cadastroOcupado) return;
+    if (form.momentoCodigo === "T3" && next === "novo") {
+      Alert.alert(
+        "Reavaliação",
+        "Na reavaliação, selecione um aluno já cadastrado.",
+      );
+      return;
+    }
     setOrigemAluno(next);
     if (next === "novo") {
       // Voltar a “novo” descarta qualquer aluno/família carregados da busca
@@ -522,6 +529,13 @@ export function ColetaForm({ initial, onSaved }: Props) {
 
   async function onChangeOrigemFamilia(next: OrigemCodigo) {
     if (cadastroOcupado) return;
+    if (form.momentoCodigo === "T3" && next === "novo") {
+      Alert.alert(
+        "Reavaliação",
+        "Na reavaliação, use a família já vinculada ao aluno.",
+      );
+      return;
+    }
     setOrigemFamilia(next);
     if (next === "novo") {
       setGeneratingCodes(true);
@@ -680,11 +694,26 @@ export function ColetaForm({ initial, onSaved }: Props) {
   function onChangeMomento(v: ColetaFormState["momentoCodigo"]) {
     set("momentoCodigo", v);
     if (!isNewColeta) return;
-    // Reavaliação: tende a reutilizar o aluno já cadastrado
-    if (v === "T3" && origemAluno === "novo") {
-      void onChangeOrigemAluno("existente");
+    // Reavaliação = aluno (e família) já existentes — não faz sentido “novo”.
+    if (v === "T3") {
+      if (origemAluno === "novo") {
+        void onChangeOrigemAluno("existente");
+      } else if (origemFamilia === "novo") {
+        setOrigemFamilia("existente");
+      }
     }
   }
+
+  const isReavaliacao = form.momentoCodigo === "T3";
+  const origemAlunoOptions = isReavaliacao
+    ? ([{ value: "existente", label: "Existente" }] as const)
+    : ORIGEM_CODIGO_OPTIONS;
+  const origemFamiliaOptions = isReavaliacao
+    ? ([{ value: "existente", label: "Existente" }] as const)
+    : ([
+        { value: "novo", label: "Nova" },
+        { value: "existente", label: "Existente" },
+      ] as const);
 
   const goToStep = useCallback(
     (index: number) => {
@@ -870,16 +899,24 @@ export function ColetaForm({ initial, onSaved }: Props) {
             />
             <Text style={styles.fieldHelp}>
               Use “Coleta em campo” na visita principal e “Reavaliação” quando
-              for retornar para acompanhar o mesmo aluno.
+              for retornar para acompanhar o mesmo aluno (sempre a partir de um
+              cadastro existente).
             </Text>
             <Segmented
               label="Código do aluno *"
               value={origemAluno}
               onChange={(v) => {
                 if (cadastroOcupado) return;
+                if (isReavaliacao && v === "novo") {
+                  Alert.alert(
+                    "Reavaliação",
+                    "Na reavaliação, selecione um aluno já cadastrado.",
+                  );
+                  return;
+                }
                 void onChangeOrigemAluno(v as OrigemCodigo);
               }}
-              options={[...ORIGEM_CODIGO_OPTIONS]}
+              options={[...origemAlunoOptions]}
             />
             {cadastroBusyMsg ? (
               <CadastroBusyBanner message={cadastroBusyMsg} />
@@ -920,7 +957,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
                   options={opcoesAlunos}
                   onChange={(codigo) => void selecionarAlunoExistente(codigo)}
                   error={errors.codigoAluno}
-                  placeholder="Toque para buscar por código ou nome…"
+                  placeholder="Buscar por nome, responsável ou código…"
                   emptyMessage={
                     carregandoAlunos
                       ? "Carregando alunos…"
@@ -930,8 +967,8 @@ export function ColetaForm({ initial, onSaved }: Props) {
                   disabled={cadastroOcupado}
                 />
                 <Text style={styles.fieldHelp}>
-                  Reavaliação: escolha o aluno na lista. Os dados dele e da
-                  família serão preenchidos automaticamente.
+                  Reavaliação: busque pelo nome do aluno ou do responsável. Os
+                  dados dele e da família serão preenchidos automaticamente.
                 </Text>
                 <View style={{ marginBottom: 12 }}>
                   <PrimaryButton
@@ -1049,12 +1086,16 @@ export function ColetaForm({ initial, onSaved }: Props) {
               value={origemFamilia}
               onChange={(v) => {
                 if (cadastroOcupado) return;
+                if (isReavaliacao && v === "novo") {
+                  Alert.alert(
+                    "Reavaliação",
+                    "Na reavaliação, use a família já vinculada ao aluno.",
+                  );
+                  return;
+                }
                 void onChangeOrigemFamilia(v as OrigemCodigo);
               }}
-              options={[
-                { value: "novo", label: "Nova" },
-                { value: "existente", label: "Existente" },
-              ]}
+              options={[...origemFamiliaOptions]}
             />
             {cadastroBusyMsg ? (
               <CadastroBusyBanner message={cadastroBusyMsg} />
@@ -1096,7 +1137,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
                   options={opcoesFamilias}
                   onChange={(codigo) => void selecionarFamiliaExistente(codigo)}
                   error={errors.codigoFamilia}
-                  placeholder="Toque para buscar família…"
+                  placeholder="Buscar por responsável, aluno ou código…"
                   emptyMessage={
                     carregandoFamilias
                       ? "Carregando famílias…"
@@ -1108,7 +1149,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
                 <Text style={styles.fieldHelp}>
                   {origemAluno === "existente"
                     ? "Vinculada ao aluno selecionado. Para trocar, escolha outro aluno."
-                    : "Irmão na mesma casa: escolha a família; o código do aluno permanece novo."}
+                    : "Irmão na mesma casa: busque pelo nome do responsável ou de um aluno já cadastrado na família (não precisa saber o código)."}
                 </Text>
                 {origemAluno !== "existente" ? (
                   <View style={{ marginBottom: 12 }}>
@@ -1145,10 +1186,11 @@ export function ColetaForm({ initial, onSaved }: Props) {
               placeholder="Buscar bairro…"
             />
             <Field
-              label="Comunidade *"
+              label="Comunidade (opcional)"
               value={form.comunidade}
               onChangeText={(t) => set("comunidade", t)}
               error={errors.comunidade}
+              placeholder="Se houver (ex.: comunidade ribeirinha)"
             />
             <Segmented
               label="Tipo de localidade *"
@@ -1343,22 +1385,25 @@ export function ColetaForm({ initial, onSaved }: Props) {
             ) : null}
             <MultiSelectChips
               label="Quais equipamentos o aluno tem disponíveis para estudar? *"
-              hint="Pode marcar vários. 'Nenhum' exclui as demais."
+              hint="Pode marcar vários. 'Nenhum' ou 'Não sabe informar' excluem as demais."
+              bypassMaxValues={[...EQUIPAMENTO_EXCLUSIVOS]}
               values={form.equipamentosEstudo}
               options={chipOpts(EQUIPAMENTO_ESTUDO_OPTIONS)}
               onToggle={(code) => {
                 setForm((prev) => {
-                  const next = toggleExclusiveCode(
+                  const next = toggleEquipamentoEstudo(
                     prev.equipamentosEstudo,
                     code,
-                    EQUIPAMENTO_NENHUM,
                   ) as ColetaFormState["equipamentosEstudo"];
-                  const soNenhum =
-                    next.length === 1 && next[0] === EQUIPAMENTO_NENHUM;
+                  const semDispositivo =
+                    next.length === 1 &&
+                    (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(
+                      next[0]!,
+                    );
                   return {
                     ...prev,
                     equipamentosEstudo: next,
-                    disponibilidadeEquipamento: soNenhum
+                    disponibilidadeEquipamento: semDispositivo
                       ? "N_A"
                       : prev.disponibilidadeEquipamento === "N_A"
                         ? ""
@@ -1373,8 +1418,9 @@ export function ColetaForm({ initial, onSaved }: Props) {
               }}
               error={errors.equipamentosEstudo}
             />
-            {!form.equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
-            form.equipamentosEstudo.length > 0 ? (
+            {!form.equipamentosEstudo.some((c) =>
+              (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(c),
+            ) && form.equipamentosEstudo.length > 0 ? (
               <Segmented
                 label="Qual é a disponibilidade desses equipamentos para o aluno estudar? *"
                 value={form.disponibilidadeEquipamento}
@@ -1402,7 +1448,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
               error={errors.acompanhamentoFamiliar}
             />
             <Segmented
-              label="O aluno possui alguma necessidade educacional específica? *"
+              label="O aluno possui alguma deficiência, condição do neurodesenvolvimento ou outra necessidade específica que possa demandar apoio ou adaptação no ambiente escolar? *"
               value={boolToSeg(form.necessidadeEducacionalEspecial)}
               onChange={(v) => {
                 const next = segToBool(v);
@@ -1412,41 +1458,72 @@ export function ColetaForm({ initial, onSaved }: Props) {
                   necessidadesEducacionais: next
                     ? prev.necessidadesEducacionais
                     : [],
+                  necessidadeOutraDescricao: next
+                    ? prev.necessidadeOutraDescricao
+                    : "",
                 }));
                 setErrors((e) => ({
                   ...e,
                   necessidadeEducacionalEspecial: undefined,
                   necessidadesEducacionais: undefined,
+                  necessidadeOutraDescricao: undefined,
                 }));
               }}
               options={[...SIM_NAO]}
               error={errors.necessidadeEducacionalEspecial}
             />
             {form.necessidadeEducacionalEspecial ? (
-              <MultiSelectChips
-                label="Se sim, quais necessidades o aluno possui? *"
-                hint="Selecione até 2 opções."
-                max={MAX_NECESSIDADES_EDUCACIONAIS}
-                values={form.necessidadesEducacionais}
-                options={chipOpts(NECESSIDADE_EDUCACIONAL_OPTIONS)}
-                onToggle={(code) => {
-                  setForm((prev) => ({
-                    ...prev,
-                    necessidadesEducacionais: toggleMaxCodes(
-                      prev.necessidadesEducacionais,
-                      code,
-                      MAX_NECESSIDADES_EDUCACIONAIS,
-                    ) as ColetaFormState["necessidadesEducacionais"],
-                  }));
-                  if (errors.necessidadesEducacionais) {
-                    setErrors((e) => ({
-                      ...e,
-                      necessidadesEducacionais: undefined,
-                    }));
-                  }
-                }}
-                error={errors.necessidadesEducacionais}
-              />
+              <>
+                <MultiSelectChips
+                  label="Se sim, quais condições ou necessidades? *"
+                  hint="Pode selecionar mais de uma. Em 'Outra', descreva qual."
+                  values={form.necessidadesEducacionais}
+                  options={chipOpts(NECESSIDADE_EDUCACIONAL_OPTIONS)}
+                  onToggle={(code) => {
+                    setForm((prev) => {
+                      const next = prev.necessidadesEducacionais.includes(
+                        code as (typeof prev.necessidadesEducacionais)[number],
+                      )
+                        ? prev.necessidadesEducacionais.filter((c) => c !== code)
+                        : [
+                            ...prev.necessidadesEducacionais,
+                            code as (typeof prev.necessidadesEducacionais)[number],
+                          ];
+                      return {
+                        ...prev,
+                        necessidadesEducacionais: next,
+                        necessidadeOutraDescricao: next.includes(
+                          NECESSIDADE_OUTRA,
+                        )
+                          ? prev.necessidadeOutraDescricao
+                          : "",
+                      };
+                    });
+                    if (
+                      errors.necessidadesEducacionais ||
+                      errors.necessidadeOutraDescricao
+                    ) {
+                      setErrors((e) => ({
+                        ...e,
+                        necessidadesEducacionais: undefined,
+                        necessidadeOutraDescricao: undefined,
+                      }));
+                    }
+                  }}
+                  error={errors.necessidadesEducacionais}
+                />
+                {form.necessidadesEducacionais.includes(NECESSIDADE_OUTRA) ? (
+                  <Field
+                    label="Qual outra condição ou necessidade? *"
+                    value={form.necessidadeOutraDescricao}
+                    onChangeText={(t) => {
+                      set("necessidadeOutraDescricao", t);
+                    }}
+                    placeholder="Descreva brevemente"
+                    error={errors.necessidadeOutraDescricao}
+                  />
+                ) : null}
+              </>
             ) : null}
             <MultiSelectChips
               label="Em qual área o aluno mais precisa de apoio atualmente? *"
@@ -1537,7 +1614,10 @@ export function ColetaForm({ initial, onSaved }: Props) {
               label="Bairro"
               value={labelOf(BAIRRO_OPTIONS, form.bairro)}
             />
-            <ReviewRow label="Comunidade" value={form.comunidade} />
+            <ReviewRow
+              label="Comunidade"
+              value={form.comunidade.trim() || "—"}
+            />
             <ReviewRow
               label="Localidade"
               value={
@@ -1642,15 +1722,23 @@ export function ColetaForm({ initial, onSaved }: Props) {
               }
             />
             <ReviewRow
-              label="NEE"
+              label="Necessidades / condições"
               value={
                 form.necessidadeEducacionalEspecial === null
                   ? ""
                   : form.necessidadeEducacionalEspecial
-                    ? labelsOf(
-                        NECESSIDADE_EDUCACIONAL_OPTIONS,
-                        form.necessidadesEducacionais,
-                      ) || "Sim"
+                    ? [
+                        labelsOf(
+                          NECESSIDADE_EDUCACIONAL_OPTIONS,
+                          form.necessidadesEducacionais,
+                        ),
+                        form.necessidadesEducacionais.includes(NECESSIDADE_OUTRA) &&
+                        form.necessidadeOutraDescricao.trim()
+                          ? `(${form.necessidadeOutraDescricao.trim()})`
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || "Sim"
                     : "Não"
               }
             />

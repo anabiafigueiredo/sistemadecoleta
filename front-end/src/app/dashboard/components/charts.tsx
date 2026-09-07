@@ -305,6 +305,12 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
   const yWidth = narrow ? 88 : 112;
   const yChars = narrow ? 12 : 16;
 
+  const showBarreiras =
+    stats.totalColetasV2 > 0 && barreirasData.length > 0;
+  const showApoio =
+    stats.totalColetasV2 > 0 &&
+    stats.apoioPrioritarioDistribuicao.length > 0;
+
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <section className="flex flex-col gap-3">
@@ -389,31 +395,23 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
             </CardContent>
           </Card>
 
-          <Card
-            className="chart-enter min-w-0 overflow-hidden"
-            style={{ animationDelay: "100ms" }}
-          >
-            <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
-              <div>
-                <CardTitle className="text-base sm:text-lg">
-                  Barreiras à frequência escolar
-                </CardTitle>
-                <CardDescription>
-                  Quais barreiras mais foram apontadas (exceto “Nenhuma”)
-                </CardDescription>
-              </div>
-              <V2BaseNotice stats={stats} />
-            </CardHeader>
-            <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              {stats.totalColetasV2 === 0 ? (
-                <ChartShell>
-                  <EmptyChart message="Sem entrevistas pelo aplicativo ainda." />
-                </ChartShell>
-              ) : barreirasData.length === 0 ? (
-                <ChartShell>
-                  <EmptyChart message="Nenhuma barreira além de “Nenhuma”." />
-                </ChartShell>
-              ) : (
+          {showBarreiras ? (
+            <Card
+              className="chart-enter min-w-0 overflow-hidden"
+              style={{ animationDelay: "100ms" }}
+            >
+              <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">
+                    Barreiras à frequência escolar
+                  </CardTitle>
+                  <CardDescription>
+                    Quais barreiras mais foram apontadas (exceto “Nenhuma”)
+                  </CardDescription>
+                </div>
+                <V2BaseNotice stats={stats} />
+              </CardHeader>
+              <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
                 <HorizontalBars
                   data={barreirasData}
                   categoryKey="nome"
@@ -422,35 +420,27 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                   maxChars={yChars}
                   unitLabel="menções"
                 />
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
-          <Card
-            className="chart-enter min-w-0 overflow-hidden"
-            style={{ animationDelay: "140ms" }}
-          >
-            <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
-              <div>
-                <CardTitle className="text-base sm:text-lg">
-                  Apoio prioritário
-                </CardTitle>
-                <CardDescription>
-                  Demanda declarada nas entrevistas pelo aplicativo
-                </CardDescription>
-              </div>
-              <V2BaseNotice stats={stats} />
-            </CardHeader>
-            <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              {stats.totalColetasV2 === 0 ? (
-                <ChartShell>
-                  <EmptyChart message="Sem entrevistas pelo aplicativo ainda." />
-                </ChartShell>
-              ) : stats.apoioPrioritarioDistribuicao.length === 0 ? (
-                <ChartShell>
-                  <EmptyChart message="Nenhum apoio prioritário preenchido." />
-                </ChartShell>
-              ) : (
+          {showApoio ? (
+            <Card
+              className="chart-enter min-w-0 overflow-hidden"
+              style={{ animationDelay: "140ms" }}
+            >
+              <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">
+                    Apoio prioritário
+                  </CardTitle>
+                  <CardDescription>
+                    Demanda declarada nas entrevistas pelo aplicativo
+                  </CardDescription>
+                </div>
+                <V2BaseNotice stats={stats} />
+              </CardHeader>
+              <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
                 <HorizontalBars
                   data={stats.apoioPrioritarioDistribuicao.map((a) => ({
                     apoio: a.apoio,
@@ -462,9 +452,9 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                   maxChars={yChars}
                   unitLabel="entrevistas"
                 />
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </section>
 

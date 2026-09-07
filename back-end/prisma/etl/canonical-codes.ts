@@ -135,6 +135,7 @@ export const EQUIPAMENTO_ESTUDO_OPTIONS: CatalogOption[] = [
   { value: "TABLET", label: "Tablet" },
   { value: "CELULAR", label: "Celular" },
   { value: "NENHUM", label: "Nenhum" },
+  { value: "NAO_SABE", label: "Não sabe informar" },
 ];
 
 export const APOIO_PRIORITARIO_OPTIONS: CatalogOption[] = [

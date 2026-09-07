@@ -19,14 +19,15 @@ import {
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
-  EQUIPAMENTO_NENHUM,
+  EQUIPAMENTO_EXCLUSIVOS,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
   MAX_APOIOS_PRIORITARIOS,
-  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
   NECESSIDADE_EDUCACIONAL_OPTIONS,
+  NECESSIDADE_OUTRA,
   PARENTESCO_OPTIONS,
+  parseDescricaoNecessidade,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
@@ -83,7 +84,7 @@ const coletaFormObject = z.object({
   codigoFamilia: z.string().trim().min(1, "Informe o código da família"),
   endereco: z.string().trim().min(1, "Informe o endereço"),
   bairro: requiredEnum(bairroValues, "Selecione o bairro"),
-  comunidade: z.string().trim().min(1, "Informe a comunidade"),
+  comunidade: z.string().trim(),
   tipoLocalidade: requiredEnum(
     tipoLocalidadeValues,
     "Selecione o tipo de localidade",
@@ -144,6 +145,7 @@ const coletaFormObject = z.object({
   turno: requiredEnum(turnoValues, "Selecione o turno do aluno"),
   necessidadeEducacionalEspecial: z.boolean().nullable(),
   necessidadesEducacionais: z.array(z.string()),
+  necessidadeOutraDescricao: z.string(),
   observacao: z.string(),
   equipamentosEstudo: z.array(z.string()),
   disponibilidadeEquipamento: z.string(),
@@ -209,7 +211,8 @@ export const coletaFormSchema = coletaFormObject.superRefine(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["necessidadeEducacionalEspecial"],
-        message: "Informe se o aluno tem necessidade educacional específica",
+        message:
+          "Informe se o aluno possui deficiência, condição do neurodesenvolvimento ou outra necessidade específica",
       });
     } else if (data.necessidadeEducacionalEspecial) {
       const needs = data.necessidadesEducacionais;
@@ -217,13 +220,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["necessidadesEducacionais"],
-          message: "Selecione até 2 necessidades do aluno",
-        });
-      } else if (needs.length > MAX_NECESSIDADES_EDUCACIONAIS) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["necessidadesEducacionais"],
-          message: `Selecione no máximo ${MAX_NECESSIDADES_EDUCACIONAIS} opções`,
+          message: "Selecione pelo menos uma condição ou necessidade",
         });
       } else if (
         needs.some(
@@ -233,7 +230,16 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["necessidadesEducacionais"],
-          message: "Selecione uma necessidade da lista",
+          message: "Selecione uma opção da lista",
+        });
+      } else if (
+        needs.includes(NECESSIDADE_OUTRA) &&
+        !data.necessidadeOutraDescricao.trim()
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["necessidadeOutraDescricao"],
+          message: "Descreva a outra condição ou necessidade",
         });
       }
     }
@@ -242,7 +248,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["equipamentosEstudo"],
-        message: "Selecione os equipamentos do aluno (ou Nenhum)",
+        message: "Selecione os equipamentos (Nenhum ou Não sabe informar)",
       });
     } else {
       const invalidEq = data.equipamentosEstudo.filter(
@@ -255,23 +261,39 @@ export const coletaFormSchema = coletaFormObject.superRefine(
           message: "Selecione um equipamento da lista",
         });
       }
+      const exclusivosMarcados = data.equipamentosEstudo.filter((c: string) =>
+        (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(c),
+      );
       if (
-        data.equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
-        data.equipamentosEstudo.some((c: string) => c !== EQUIPAMENTO_NENHUM)
+        exclusivosMarcados.length > 0 &&
+        data.equipamentosEstudo.some(
+          (c: string) =>
+            !(EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(c),
+        )
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["equipamentosEstudo"],
-          message: "'Nenhum' não pode ser combinado com outros equipamentos",
+          message:
+            "'Nenhum' ou 'Não sabe informar' não podem ser combinados com outros",
+        });
+      }
+      if (exclusivosMarcados.length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["equipamentosEstudo"],
+          message: "Escolha só uma entre 'Nenhum' e 'Não sabe informar'",
         });
       }
     }
 
-    const soEquipamentoNenhum =
+    const soSemDispositivo =
       data.equipamentosEstudo.length === 1 &&
-      data.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+      (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(
+        data.equipamentosEstudo[0]!,
+      );
 
-    if (soEquipamentoNenhum) {
+    if (soSemDispositivo) {
       if (
         data.disponibilidadeEquipamento &&
         data.disponibilidadeEquipamento !== "N_A"
@@ -279,7 +301,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["disponibilidadeEquipamento"],
-          message: "Sem equipamento, use 'Não se aplica'",
+          message: "Sem equipamento informado, use 'Não se aplica'",
         });
       }
     } else if (data.equipamentosEstudo.length > 0) {
@@ -553,6 +575,7 @@ export const COLETA_WIZARD_STEPS = [
       "acompanhamentoFamiliar",
       "necessidadeEducacionalEspecial",
       "necessidadesEducacionais",
+      "necessidadeOutraDescricao",
       "apoiosPrioritarios",
       "observacao",
     ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
@@ -608,10 +631,12 @@ export function validateColetaForm(form: ColetaFormState): {
 
   const d = parsed.data;
   const renda = parseCurrencyToNumber(d.rendaFamiliarMensal);
-  const soEquipamentoNenhum =
+  const soSemDispositivo =
     d.equipamentosEstudo.length === 1 &&
-    d.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
-  const disponibilidade = soEquipamentoNenhum
+    (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(
+      d.equipamentosEstudo[0]!,
+    );
+  const disponibilidade = soSemDispositivo
     ? ("N_A" as const)
     : (d.disponibilidadeEquipamento as (typeof disponibilidadeValues)[number]);
 
@@ -664,6 +689,11 @@ export function validateColetaForm(form: ColetaFormState): {
       necessidadesEducacionais: d.necessidadeEducacionalEspecial
         ? (d.necessidadesEducacionais as (typeof necessidadeValues)[number][])
         : null,
+      necessidadeOutraDescricao:
+        d.necessidadeEducacionalEspecial &&
+        d.necessidadesEducacionais.includes(NECESSIDADE_OUTRA)
+          ? d.necessidadeOutraDescricao.trim() || null
+          : null,
       observacao: d.observacao.trim() ? d.observacao.trim() : null,
       equipamentosEstudo: d.equipamentosEstudo as (typeof equipamentoValues)[number][],
       disponibilidadeEquipamento: disponibilidade,
@@ -724,6 +754,7 @@ export function emptyForm(): ColetaFormState {
     turno: "",
     necessidadeEducacionalEspecial: null,
     necessidadesEducacionais: [],
+    necessidadeOutraDescricao: "",
     observacao: "",
     equipamentosEstudo: [],
     disponibilidadeEquipamento: "",
@@ -759,16 +790,19 @@ export function formFromPayload(payload: ColetaPayload): ColetaFormState {
         : []
   ) as ColetaFormState["apoiosPrioritarios"];
 
+  const parsedNee = parseDescricaoNecessidade(
+    pesquisa.descricaoNecessidade ?? undefined,
+  );
   const necessidadesEducacionais = (
     pesquisa.necessidadesEducacionais?.length
       ? pesquisa.necessidadesEducacionais
-      : pesquisa.descricaoNecessidade
-        ? pesquisa.descricaoNecessidade
-            .split(/[,;|]/)
-            .map((c) => c.trim())
-            .filter(Boolean)
-        : []
+      : parsedNee.codes
   ) as ColetaFormState["necessidadesEducacionais"];
+  const necessidadeOutraDescricao =
+    (pesquisa as { necessidadeOutraDescricao?: string | null })
+      .necessidadeOutraDescricao?.trim() ||
+    parsedNee.outraTexto ||
+    "";
 
   return {
     momentoCodigo: codigo,
@@ -814,6 +848,7 @@ export function formFromPayload(payload: ColetaPayload): ColetaFormState {
     necessidadeEducacionalEspecial:
       payload.pesquisa.necessidadeEducacionalEspecial,
     necessidadesEducacionais,
+    necessidadeOutraDescricao,
     observacao: payload.pesquisa.observacao ?? "",
     equipamentosEstudo,
     disponibilidadeEquipamento:

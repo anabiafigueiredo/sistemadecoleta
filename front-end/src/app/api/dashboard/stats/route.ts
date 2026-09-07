@@ -27,8 +27,33 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+type OrigemFiltro = "PLANILHA" | "MOBILE";
+
+function parseOrigem(request: Request): OrigemFiltro | null {
+  const raw = new URL(request.url).searchParams.get("origem")?.trim().toUpperCase();
+  return raw === "PLANILHA" || raw === "MOBILE" ? raw : null;
+}
+
+export async function GET(request: Request) {
   try {
+    const origem = parseOrigem(request);
+    const pesquisaWhere = origem ? { origem } : {};
+    const pesquisaV2Where = {
+      versaoQuestionario: 2,
+      ...pesquisaWhere,
+    };
+    /** Famílias/alunos do ciclo: quem tem ao menos uma entrevista da origem. */
+    const familiaWhere = origem
+      ? {
+          alunos: {
+            some: { pesquisasSocioeconomicas: { some: { origem } } },
+          },
+        }
+      : {};
+    const alunoWhere = origem
+      ? { pesquisasSocioeconomicas: { some: { origem } } }
+      : {};
+
     const [
       totalAlunos,
       totalFamilias,
@@ -39,13 +64,12 @@ export async function GET() {
       pesquisasV2,
       momentos,
     ] = await Promise.all([
-      prisma.aluno.count(),
-      prisma.familia.count(),
-      prisma.pesquisaSocioeconomica.count(),
-      prisma.pesquisaSocioeconomica.count({
-        where: { versaoQuestionario: 2 },
-      }),
+      prisma.aluno.count({ where: alunoWhere }),
+      prisma.familia.count({ where: familiaWhere }),
+      prisma.pesquisaSocioeconomica.count({ where: pesquisaWhere }),
+      prisma.pesquisaSocioeconomica.count({ where: pesquisaV2Where }),
       prisma.familia.findMany({
+        where: familiaWhere,
         select: {
           bairro: true,
           rendaFamiliarMensal: true,
@@ -57,6 +81,7 @@ export async function GET() {
         },
       }),
       prisma.pesquisaSocioeconomica.findMany({
+        where: pesquisaWhere,
         select: {
           meioTransporteEscola: true,
           turno: true,
@@ -67,7 +92,7 @@ export async function GET() {
         },
       }),
       prisma.pesquisaSocioeconomica.findMany({
-        where: { versaoQuestionario: 2 },
+        where: pesquisaV2Where,
         select: {
           apoioPrioritario: true,
           localEstudo: true,
@@ -80,6 +105,7 @@ export async function GET() {
         },
       }),
       prisma.momentoColeta.findMany({
+        where: origem ? { origemPadrao: origem } : {},
         include: { _count: { select: { pesquisas: true } } },
         orderBy: { dataReferencia: "asc" },
       }),
@@ -117,9 +143,13 @@ export async function GET() {
     ).length;
 
     /** Local adequado = SIM; base = entrevistas do app com resposta. */
-    const localEstudoInformado = pesquisasV2.filter(
-      (p) => p.localEstudo != null && p.localEstudo.trim() !== "",
-    );
+    const localEstudoInformado = pesquisasV2.filter((p) => {
+      if (p.localEstudo == null || p.localEstudo.trim() === "") return false;
+      const code =
+        canonicalCode(LOCAL_ESTUDO_OPTIONS, p.localEstudo) ??
+        p.localEstudo.trim();
+      return code !== "NAO_SABE";
+    });
     const comLocalEstudoAdequado = localEstudoInformado.filter((p) => {
       const code =
         canonicalCode(LOCAL_ESTUDO_OPTIONS, p.localEstudo) ??
@@ -127,20 +157,27 @@ export async function GET() {
       return code === "SIM";
     }).length;
 
-    /** Acompanhamento regular = Sempre (escala atual sem "Frequentemente"). */
-    const ACOMPANHAMENTO_REGULAR = new Set(["SEMPRE"]);
-    const acompanhamentoInformado = pesquisasV2.filter(
-      (p) =>
-        p.acompanhamentoFamiliar != null &&
-        p.acompanhamentoFamiliar.trim() !== "",
-    );
+    const acompanhamentoInformado = pesquisasV2.filter((p) => {
+      if (
+        p.acompanhamentoFamiliar == null ||
+        p.acompanhamentoFamiliar.trim() === ""
+      ) {
+        return false;
+      }
+      const code =
+        canonicalCode(
+          ACOMPANHAMENTO_FAMILIAR_OPTIONS,
+          p.acompanhamentoFamiliar,
+        ) ?? p.acompanhamentoFamiliar.trim().toUpperCase();
+      return code !== "NAO_SABE";
+    });
     const comAcompanhamentoRegular = acompanhamentoInformado.filter((p) => {
       const code =
         canonicalCode(
           ACOMPANHAMENTO_FAMILIAR_OPTIONS,
           p.acompanhamentoFamiliar,
         ) ?? p.acompanhamentoFamiliar!.trim().toUpperCase();
-      return ACOMPANHAMENTO_REGULAR.has(code);
+      return code === "SEMPRE";
     }).length;
 
     /** Distribuições: agrupar por código canônico; rótulo só na resposta. */

@@ -191,13 +191,20 @@ export default function DetalheColetaScreen() {
         />
         <Line label="Turno" value={labelOf(TURNO_OPTIONS, pesquisa.turno)} />
         <Line
-          label="NEE"
+          label="Necessidades"
           value={
             pesquisa.necessidadeEducacionalEspecial
-              ? labelsOf(
-                  NECESSIDADE_EDUCACIONAL_OPTIONS,
-                  pesquisa.necessidadesEducacionais ?? [],
-                ) || "Sim"
+              ? [
+                  labelsOf(
+                    NECESSIDADE_EDUCACIONAL_OPTIONS,
+                    pesquisa.necessidadesEducacionais ?? [],
+                  ),
+                  pesquisa.necessidadeOutraDescricao?.trim()
+                    ? `(${pesquisa.necessidadeOutraDescricao.trim()})`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || "Sim"
               : "Não"
           }
         />

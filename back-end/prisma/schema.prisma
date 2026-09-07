@@ -72,6 +72,7 @@ enum LocalEstudo {
   SIM
   PARCIALMENTE
   NAO
+  NAO_SABE
 }
 
 enum AcompanhamentoFamiliar {

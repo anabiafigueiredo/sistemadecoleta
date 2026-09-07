@@ -10,20 +10,22 @@ import {
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
-  EQUIPAMENTO_NENHUM,
+  EQUIPAMENTO_EXCLUSIVOS,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
   MAX_APOIOS_PRIORITARIOS,
-  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
   NECESSIDADE_EDUCACIONAL_OPTIONS,
+  NECESSIDADE_OUTRA,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
   TURNO_OPTIONS,
   canonicalCode,
+  encodeDescricaoNecessidade,
   joinCodes,
+  parseDescricaoNecessidade,
   splitCodes,
 } from "@/lib/opcoes-questionario";
 
@@ -153,7 +155,7 @@ export const coletaSchema = z
         .min(1, "codigoFamilia é obrigatório"),
       endereco: z.string().trim().min(1),
       bairro: codeEnumFromOptions(BAIRRO_OPTIONS),
-      comunidade: z.string().trim().min(1),
+      comunidade: z.string().trim(),
       /** Obrigatório no mobile v2; null/omitido na importação v1. */
       tipoLocalidade: tipoLocalidadeEnum.nullable().optional(),
       qtdMoradores: z.coerce.number().int().min(1),
@@ -212,8 +214,9 @@ export const coletaSchema = z
         anoSerie: anoSerieEnum,
         turno: turnoEnum,
         necessidadeEducacionalEspecial: z.boolean(),
-        /** Códigos NEE (até 2). Aceita também descricaoNecessidade CSV legada. */
+        /** Códigos NEE (múltipla escolha). Aceita também descricaoNecessidade CSV legada. */
         necessidadesEducacionais: necessidadesEducacionaisArray.optional(),
+        necessidadeOutraDescricao: z.string().trim().nullable().optional(),
         descricaoNecessidade: z.string().trim().nullable().optional(),
         observacao: z.string().trim().nullable().optional(),
         /** Arrays v2; campos singulares legados ainda aceitos. */
@@ -253,13 +256,18 @@ export const coletaSchema = z
             ? p.apoiosPrioritarios
             : fromApoioLegacy;
 
-        const fromNeeText = splitCodes(p.descricaoNecessidade ?? undefined)
+        const parsedNee = parseDescricaoNecessidade(p.descricaoNecessidade);
+        const fromNeeText = parsedNee.codes
           .map((c) => canonicalCode(NECESSIDADE_EDUCACIONAL_OPTIONS, c) ?? c)
           .filter(Boolean);
         const necessidadesEducacionais =
           p.necessidadesEducacionais && p.necessidadesEducacionais.length > 0
             ? p.necessidadesEducacionais
             : fromNeeText;
+        const necessidadeOutraDescricao =
+          p.necessidadeOutraDescricao?.trim() ||
+          parsedNee.outraTexto ||
+          null;
 
         return {
           meioTransporteEscola: p.meioTransporteEscola,
@@ -269,6 +277,7 @@ export const coletaSchema = z
           turno: p.turno,
           necessidadeEducacionalEspecial: p.necessidadeEducacionalEspecial,
           necessidadesEducacionais,
+          necessidadeOutraDescricao,
           observacao: p.observacao ?? null,
           equipamentosEstudo,
           disponibilidadeEquipamento: p.disponibilidadeEquipamento ?? null,
@@ -369,13 +378,16 @@ export const coletaSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["pesquisa", "necessidadesEducacionais"],
-          message: "Selecione até 2 necessidades educacionais",
+          message: "Selecione pelo menos uma condição ou necessidade",
         });
-      } else if (needs.length > MAX_NECESSIDADES_EDUCACIONAIS) {
+      } else if (
+        needs.includes(NECESSIDADE_OUTRA) &&
+        !data.pesquisa.necessidadeOutraDescricao?.trim()
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["pesquisa", "necessidadesEducacionais"],
-          message: `Selecione no máximo ${MAX_NECESSIDADES_EDUCACIONAIS} opções`,
+          path: ["pesquisa", "necessidadeOutraDescricao"],
+          message: "Descreva a outra condição ou necessidade",
         });
       }
     }
@@ -391,23 +403,38 @@ export const coletaSchema = z
       });
     }
 
-    const soNenhum =
+    const soSemDispositivo =
       equipamentosEstudo.length === 1 &&
-      equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+      (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(
+        equipamentosEstudo[0]!,
+      );
     const hasEquip = equipamentosEstudo.length > 0;
 
     if (hasEquip) {
+      const exclusivosMarcados = equipamentosEstudo.filter((c) =>
+        (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(c),
+      );
       if (
-        equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
-        equipamentosEstudo.some((c) => c !== EQUIPAMENTO_NENHUM)
+        exclusivosMarcados.length > 0 &&
+        equipamentosEstudo.some(
+          (c) => !(EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(c),
+        )
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["pesquisa", "equipamentosEstudo"],
-          message: "'Nenhum' não pode ser combinado com outros equipamentos",
+          message:
+            "'Nenhum' ou 'Não sabe informar' não podem ser combinados com outros",
         });
       }
-      if (soNenhum) {
+      if (exclusivosMarcados.length > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "equipamentosEstudo"],
+          message: "Escolha só uma entre 'Nenhum' e 'Não sabe informar'",
+        });
+      }
+      if (soSemDispositivo) {
         if (
           disponibilidadeEquipamento != null &&
           disponibilidadeEquipamento !== "N_A"
@@ -416,7 +443,7 @@ export const coletaSchema = z
             code: z.ZodIssueCode.custom,
             path: ["pesquisa", "disponibilidadeEquipamento"],
             message:
-              "Com equipamento 'nenhum', disponibilidade deve ser N_A ou omitida",
+              "Sem equipamento informado, disponibilidade deve ser N_A ou omitida",
           });
         }
       } else if (disponibilidadeEquipamento === "N_A") {
@@ -487,17 +514,22 @@ export type ColetaInput = z.infer<typeof coletaSchema>;
 
 /** Serializa arrays para colunas String do banco (CSV). */
 export function pesquisaToDbScalars(pesquisa: ColetaInput["pesquisa"]) {
-  const soNenhum =
+  const soSemDispositivo =
     pesquisa.equipamentosEstudo.length === 1 &&
-    pesquisa.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+    (EQUIPAMENTO_EXCLUSIVOS as readonly string[]).includes(
+      pesquisa.equipamentosEstudo[0]!,
+    );
   return {
     necessidadeEducacionalEspecial: pesquisa.necessidadeEducacionalEspecial,
     descricaoNecessidade: pesquisa.necessidadeEducacionalEspecial
-      ? joinCodes(pesquisa.necessidadesEducacionais)
+      ? encodeDescricaoNecessidade(
+          pesquisa.necessidadesEducacionais,
+          pesquisa.necessidadeOutraDescricao,
+        )
       : null,
     observacao: pesquisa.observacao ?? null,
     equipamentoEstudo: joinCodes(pesquisa.equipamentosEstudo),
-    disponibilidadeEquipamento: soNenhum
+    disponibilidadeEquipamento: soSemDispositivo
       ? ("N_A" as const)
       : (pesquisa.disponibilidadeEquipamento ?? null),
     localEstudo: pesquisa.localEstudo ?? null,

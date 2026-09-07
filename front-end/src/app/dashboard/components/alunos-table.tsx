@@ -15,7 +15,7 @@ import { AlunoDetailPanels } from "./aluno-detail-panels";
 import { ApiRequestError, fetchJson } from "@/lib/fetch-json";
 import type { AlunoListItem } from "@/lib/types";
 
-type OrigemFiltro = "TODOS" | "PLANILHA" | "MOBILE";
+type OrigemFiltro = "PLANILHA" | "MOBILE" | null;
 
 function formatDataCurta(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", {
@@ -28,6 +28,12 @@ function formatDataCurta(iso: string) {
 
 function origemLabel(origem: "PLANILHA" | "MOBILE") {
   return origem === "PLANILHA" ? "Ciclo 1" : "Ciclo 2";
+}
+
+function visaoLabel(origem: OrigemFiltro) {
+  if (origem === "PLANILHA") return "Ciclo 1";
+  if (origem === "MOBILE") return "Ciclo 2";
+  return "Total";
 }
 
 function dataEntrevista(aluno: AlunoListItem): string | null {
@@ -47,17 +53,19 @@ function isAbortError(err: unknown) {
 
 export function AlunosTable({
   refreshKey = 0,
+  origemFiltro = null,
   totalColetas,
   totalColetasV2,
 }: {
   refreshKey?: number;
+  /** Filtro global do painel (null = visão consolidada). */
+  origemFiltro?: OrigemFiltro;
   /** Totais do painel — exibidos junto à consulta de entrevistas. */
   totalColetas?: number;
   totalColetasV2?: number;
 }) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [origemFiltro, setOrigemFiltro] = useState<OrigemFiltro>("TODOS");
   const [alunos, setAlunos] = useState<AlunoListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -82,7 +90,7 @@ export function AlunosTable({
       try {
         const params = new URLSearchParams();
         if (debounced) params.set("q", debounced);
-        if (origemFiltro !== "TODOS") params.set("origem", origemFiltro);
+        if (origemFiltro) params.set("origem", origemFiltro);
         const qs = params.toString();
         const data = await fetchJson<AlunoListItem[]>(
           `/api/alunos${qs ? `?${qs}` : ""}`,
@@ -126,10 +134,14 @@ export function AlunosTable({
               {totalColetas != null ? (
                 <>
                   {totalColetas} entrevista
-                  {totalColetas === 1 ? "" : "s"} no total
-                  {totalColetasV2 != null
-                    ? ` · ${totalColetasV2} pelo aplicativo`
-                    : ""}
+                  {totalColetas === 1 ? "" : "s"}
+                  {origemFiltro == null && totalColetasV2 != null
+                    ? ` no total · ${totalColetasV2} pelo aplicativo`
+                    : origemFiltro === "MOBILE"
+                      ? " do aplicativo"
+                      : origemFiltro === "PLANILHA"
+                        ? " da planilha"
+                        : ""}
                   .{" "}
                 </>
               ) : null}
@@ -148,34 +160,12 @@ export function AlunosTable({
             />
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <FilterChip
-            active={origemFiltro === "TODOS"}
-            onClick={() => setOrigemFiltro("TODOS")}
-            label="Todos os ciclos"
-          />
-          <FilterChip
-            active={origemFiltro === "PLANILHA"}
-            onClick={() => setOrigemFiltro("PLANILHA")}
-            label="Ciclo 1"
-            hint="Baseline / importação da planilha (v1)"
-          />
-          <FilterChip
-            active={origemFiltro === "MOBILE"}
-            onClick={() => setOrigemFiltro("MOBILE")}
-            label="Ciclo 2"
-            hint="Entrevistas sincronizadas do app (v2)"
-          />
-        </div>
       </CardHeader>
       <CardContent className="p-3 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground sm:text-sm">
           <span>{countLabel ?? "\u00a0"}</span>
           <span className="truncate">
-            {origemFiltro !== "TODOS"
-              ? origemLabel(origemFiltro)
-              : "Todos os ciclos"}
+            {visaoLabel(origemFiltro)}
             {debounced ? ` · “${debounced}”` : ""}
           </span>
         </div>
@@ -311,33 +301,6 @@ export function AlunosTable({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function FilterChip({
-  label,
-  hint,
-  active,
-  onClick,
-}: {
-  label: string;
-  hint?: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={hint}
-      onClick={onClick}
-      className={
-        active
-          ? "rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
-          : "rounded-lg border border-border bg-white/80 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-      }
-    >
-      {label}
-    </button>
   );
 }
 

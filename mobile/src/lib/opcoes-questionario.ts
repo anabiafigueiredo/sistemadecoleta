@@ -182,6 +182,7 @@ export const EQUIPAMENTO_ESTUDO_OPTIONS = [
   { value: "TABLET", label: "Tablet" },
   { value: "CELULAR", label: "Celular" },
   { value: "NENHUM", label: "Nenhum" },
+  NAO_SABE,
 ] as const;
 
 export const DISPONIBILIDADE_EQUIPAMENTO_OPTIONS = [
@@ -198,6 +199,7 @@ export const LOCAL_ESTUDO_OPTIONS = [
   { value: "SIM", label: "Sim" },
   { value: "PARCIALMENTE", label: "Parcialmente" },
   { value: "NAO", label: "Não" },
+  NAO_SABE,
 ] as const;
 
 export const ACOMPANHAMENTO_FAMILIAR_OPTIONS = [
@@ -205,6 +207,7 @@ export const ACOMPANHAMENTO_FAMILIAR_OPTIONS = [
   { value: "AS_VEZES", label: "Às vezes" },
   { value: "RARAMENTE", label: "Raramente" },
   { value: "NUNCA", label: "Nunca" },
+  NAO_SABE,
 ] as const;
 
 export const APOIO_PRIORITARIO_OPTIONS = [
@@ -303,7 +306,9 @@ export const PARENTESCO_OPTIONS = [
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
-/** Necessidades educacionais específicas (máx. 2 na coleta). */
+/** Necessidades / condições que podem demandar apoio escolar (múltipla escolha). */
+export const NECESSIDADE_OUTRA = "OUTRA" as const;
+
 export const NECESSIDADE_EDUCACIONAL_OPTIONS = [
   { value: "DEFICIENCIA_INTELECTUAL", label: "Deficiência intelectual" },
   { value: "DEFICIENCIA_FISICA", label: "Deficiência física" },
@@ -318,12 +323,20 @@ export const NECESSIDADE_EDUCACIONAL_OPTIONS = [
     label: "Transtorno de Déficit de Atenção/Hiperatividade (TDAH)",
   },
   { value: "ALTAS_HABILIDADES", label: "Altas habilidades / superdotação" },
-  { value: "OUTRA", label: "Outra" },
+  { value: NECESSIDADE_OUTRA, label: "Outra (especificar)" },
 ] as const;
 
 export const EQUIPAMENTO_NENHUM = "NENHUM" as const;
+export const EQUIPAMENTO_NAO_SABE = NAO_SABE.value;
+/** Códigos exclusivos em equipamentos (não combinam com dispositivos). */
+export const EQUIPAMENTO_EXCLUSIVOS = [
+  EQUIPAMENTO_NENHUM,
+  EQUIPAMENTO_NAO_SABE,
+] as const;
 export const APOIO_NENHUM = "NENHUM" as const;
-export const MAX_NECESSIDADES_EDUCACIONAIS = 2;
+/** @deprecated Sem limite fixo — múltipla escolha livre no catálogo. */
+export const MAX_NECESSIDADES_EDUCACIONAIS =
+  NECESSIDADE_EDUCACIONAL_OPTIONS.length;
 export const MAX_APOIOS_PRIORITARIOS = 2;
 
 export type TipoLocalidadeValue =
@@ -356,17 +369,18 @@ export type ParentescoValue = (typeof PARENTESCO_OPTIONS)[number]["value"];
 export type NecessidadeEducacionalValue =
   (typeof NECESSIDADE_EDUCACIONAL_OPTIONS)[number]["value"];
 
-/** Alterna código; exclusive limpa as demais e vice-versa; max limita não-exclusivos. */
-export function toggleExclusiveCode(
+/** Alterna código; exclusivos limpam as demais e vice-versa; max limita não-exclusivos. */
+export function toggleExclusiveCodes(
   selected: readonly string[],
   code: string,
-  exclusiveCode: string,
+  exclusiveCodes: readonly string[],
   maxNonExclusive?: number,
 ): string[] {
-  if (code === exclusiveCode) {
-    return selected.includes(exclusiveCode) ? [] : [exclusiveCode];
+  const exclusives = new Set(exclusiveCodes);
+  if (exclusives.has(code)) {
+    return selected.includes(code) ? [] : [code];
   }
-  const withoutExclusive = selected.filter((c) => c !== exclusiveCode);
+  const withoutExclusive = selected.filter((c) => !exclusives.has(c));
   if (withoutExclusive.includes(code)) {
     return withoutExclusive.filter((c) => c !== code);
   }
@@ -377,6 +391,28 @@ export function toggleExclusiveCode(
     return [...withoutExclusive];
   }
   return [...withoutExclusive, code];
+}
+
+/** Alterna código; exclusive limpa as demais e vice-versa; max limita não-exclusivos. */
+export function toggleExclusiveCode(
+  selected: readonly string[],
+  code: string,
+  exclusiveCode: string,
+  maxNonExclusive?: number,
+): string[] {
+  return toggleExclusiveCodes(
+    selected,
+    code,
+    [exclusiveCode],
+    maxNonExclusive,
+  );
+}
+
+export function toggleEquipamentoEstudo(
+  selected: readonly string[],
+  code: string,
+): string[] {
+  return toggleExclusiveCodes(selected, code, EQUIPAMENTO_EXCLUSIVOS);
 }
 
 /** Alterna até `max` códigos (sem exclusivo). */
@@ -414,6 +450,41 @@ export function splitCodes(raw: string | null | undefined): string[] {
 export function joinCodes(codes: readonly string[]): string | null {
   const unique = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
   return unique.length ? unique.join(",") : null;
+}
+
+/** Separador entre códigos CSV e texto livre de “Outra” em descricaoNecessidade. */
+export const NEE_OUTRA_SEP = "###" as const;
+
+/** Persiste códigos + texto de OUTRA numa única coluna. */
+export function encodeDescricaoNecessidade(
+  codes: readonly string[],
+  outraTexto?: string | null,
+): string | null {
+  const base = joinCodes(codes);
+  if (!base) return null;
+  const t = outraTexto?.trim();
+  if (codes.includes(NECESSIDADE_OUTRA) && t) {
+    return `${base}${NEE_OUTRA_SEP}${t}`;
+  }
+  return base;
+}
+
+/** Lê códigos e texto de OUTRA a partir de descricaoNecessidade. */
+export function parseDescricaoNecessidade(
+  raw: string | null | undefined,
+): { codes: string[]; outraTexto: string } {
+  if (raw == null || !String(raw).trim()) {
+    return { codes: [], outraTexto: "" };
+  }
+  const text = String(raw);
+  const idx = text.indexOf(NEE_OUTRA_SEP);
+  if (idx === -1) {
+    return { codes: splitCodes(text), outraTexto: "" };
+  }
+  return {
+    codes: splitCodes(text.slice(0, idx)),
+    outraTexto: text.slice(idx + NEE_OUTRA_SEP.length).trim(),
+  };
 }
 
 export function labelsOf(

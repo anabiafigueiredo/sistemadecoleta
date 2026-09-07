@@ -9,7 +9,12 @@ import {
   View,
 } from "react-native";
 
-type Option<T extends string> = { value: T; label: string };
+type Option<T extends string> = {
+  value: T;
+  label: string;
+  /** Texto extra só para filtro (ex.: nomes). */
+  searchText?: string;
+};
 
 type Props<T extends string> = {
   label: string;
@@ -51,11 +56,12 @@ export function SearchableSelect<T extends string>({
   const filtered = useMemo(() => {
     const q = normalizeSearch(query);
     if (!q) return options;
-    return options.filter(
-      (o) =>
-        normalizeSearch(o.label).includes(q) ||
-        normalizeSearch(o.value).includes(q),
-    );
+    return options.filter((o) => {
+      const hay = [o.label, o.value, o.searchText ?? ""]
+        .map(normalizeSearch)
+        .join(" ");
+      return hay.includes(q);
+    });
   }, [options, query]);
 
   return (
@@ -75,7 +81,7 @@ export function SearchableSelect<T extends string>({
       >
         <Text
           style={selectedLabel ? styles.triggerValue : styles.triggerPlaceholder}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {loading
             ? "Carregando lista…"
@@ -104,7 +110,7 @@ export function SearchableSelect<T extends string>({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Digite código ou nome para filtrar…"
+            placeholder="Buscar por nome, responsável ou código…"
             placeholderTextColor="#94A3B8"
             autoFocus
             style={styles.search}

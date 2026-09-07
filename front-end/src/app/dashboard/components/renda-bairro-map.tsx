@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
-  GeoJSON,
   useMap,
 } from "react-leaflet";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
-import type { Layer, PathOptions } from "leaflet";
+import type { PathOptions } from "leaflet";
 import L from "leaflet";
 import {
   matchGeoBairroName,
@@ -64,6 +63,110 @@ function FitBounds({ geo }: { geo: FeatureCollection }) {
       map.setView([-3.1, -60.0], 11);
     }
   }, [geo, map]);
+  return null;
+}
+
+function bairroLabel(
+  nome: string,
+  data: RendaItem | undefined,
+): string {
+  return data
+    ? `<strong>${nome}</strong><br/>Renda média: ${formatCurrency(data.rendaMedia)}<br/>Famílias: ${data.familias}`
+    : `<strong>${nome}</strong><br/><span style="opacity:.75">Sem dados nesta coleta</span>`;
+}
+
+/**
+ * Uma única tooltip + um único popup no mapa (não por polígono).
+ * Evita balões órfãos ao passar rápido entre bairros.
+ */
+function BairrosLayer({
+  geo,
+  byGeoName,
+  min,
+  max,
+}: {
+  geo: FeatureCollection;
+  byGeoName: Map<string, RendaItem>;
+  min: number;
+  max: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const hoverTip = L.tooltip({
+      direction: "top",
+      className: "bairro-map-tooltip",
+      opacity: 1,
+      sticky: true,
+    });
+    const clickPopup = L.popup({
+      className: "bairro-map-popup",
+      maxWidth: 240,
+    });
+
+    const styleFeature = (
+      feature?: Feature<Geometry, GeoProps>,
+    ): PathOptions => {
+      const nome = feature?.properties?.nome ?? "";
+      const data = byGeoName.get(normalizeBairroName(nome));
+      if (!data) {
+        return {
+          fillColor: NO_DATA_FILL,
+          fillOpacity: 0.85,
+          color: NO_DATA_STROKE,
+          weight: 0.8,
+        };
+      }
+      return {
+        fillColor: colorForRenda(data.rendaMedia, min, max),
+        fillOpacity: 0.88,
+        color: HAS_DATA_STROKE,
+        weight: 1.4,
+      };
+    };
+
+    const layer = L.geoJSON(geo as Parameters<typeof L.geoJSON>[0], {
+      style: styleFeature,
+      onEachFeature: (feature, lyr) => {
+        const props = feature.properties as GeoProps | null;
+        const nome = props?.nome ?? "Bairro";
+        const data = byGeoName.get(normalizeBairroName(nome));
+        const label = bairroLabel(nome, data);
+
+        lyr.on({
+          mouseover: (e) => {
+            const target = e.target as L.Path;
+            target.setStyle({ weight: 2.2, fillOpacity: 0.95 });
+            target.bringToFront();
+            clickPopup.close();
+            hoverTip.setContent(label).setLatLng(e.latlng).openOn(map);
+          },
+          mousemove: (e) => {
+            if (hoverTip.isOpen()) hoverTip.setLatLng(e.latlng);
+          },
+          mouseout: (e) => {
+            const target = e.target as L.Path;
+            layer.resetStyle(target);
+            hoverTip.close();
+          },
+          click: (e) => {
+            L.DomEvent.stopPropagation(e);
+            hoverTip.close();
+            clickPopup.setContent(label).setLatLng(e.latlng).openOn(map);
+          },
+        });
+      },
+    });
+
+    layer.addTo(map);
+
+    return () => {
+      hoverTip.close();
+      clickPopup.close();
+      map.removeLayer(layer);
+    };
+  }, [geo, byGeoName, min, max, map]);
+
   return null;
 }
 
@@ -170,57 +273,6 @@ export function RendaBairroMap({
     );
   }
 
-  const styleFeature = (feature?: Feature<Geometry, GeoProps>): PathOptions => {
-    const nome = feature?.properties?.nome ?? "";
-    const data = byGeoName.get(normalizeBairroName(nome));
-    if (!data) {
-      return {
-        fillColor: NO_DATA_FILL,
-        fillOpacity: 0.85,
-        color: NO_DATA_STROKE,
-        weight: 0.8,
-      };
-    }
-    return {
-      fillColor: colorForRenda(data.rendaMedia, min, max),
-      fillOpacity: 0.88,
-      color: HAS_DATA_STROKE,
-      weight: 1.4,
-    };
-  };
-
-  const onEachFeature = (feature: Feature<Geometry, GeoProps>, layer: Layer) => {
-    const nome = feature.properties?.nome ?? "Bairro";
-    const data = byGeoName.get(normalizeBairroName(nome));
-    const label = data
-      ? `<strong>${nome}</strong><br/>Renda média: ${formatCurrency(data.rendaMedia)}<br/>Famílias: ${data.familias}`
-      : `<strong>${nome}</strong><br/><span style="opacity:.75">Sem dados nesta coleta</span>`;
-
-    // Hover no desktop; popup no toque/clique (mobile não tem hover).
-    layer.bindTooltip(label, {
-      sticky: true,
-      className: "bairro-map-tooltip",
-      opacity: 1,
-    });
-    layer.bindPopup(label, { className: "bairro-map-popup", maxWidth: 240 });
-
-    layer.on({
-      mouseover: (e) => {
-        const target = e.target as L.Path;
-        target.setStyle({ weight: 2.2, fillOpacity: 0.95 });
-        target.bringToFront();
-      },
-      mouseout: (e) => {
-        const target = e.target as L.Path;
-        target.setStyle(styleFeature(feature));
-      },
-      click: (e) => {
-        const target = e.target as L.Layer & { openPopup?: () => void };
-        target.openPopup?.();
-      },
-    });
-  };
-
   return (
     <div className="relative h-full w-full overflow-hidden rounded-md">
       <MapContainer
@@ -236,11 +288,11 @@ export function RendaBairroMap({
           opacity={0.55}
         />
         <FitBounds geo={geo} />
-        <GeoJSON
-          key={`${rendaPorBairro.map((r) => `${r.bairro}:${r.rendaMedia}`).join("|")}`}
-          data={geo}
-          style={styleFeature}
-          onEachFeature={onEachFeature}
+        <BairrosLayer
+          geo={geo}
+          byGeoName={byGeoName}
+          min={min}
+          max={max}
         />
       </MapContainer>
       <Legend min={min} max={max} hasData={byGeoName.size > 0} />
