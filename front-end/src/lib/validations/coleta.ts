@@ -113,7 +113,6 @@ const tipoAcessoInternetEnum = codeEnumFromOptions(
 const beneficioSocialEnum = codeEnumFromOptions(BENEFICIO_SOCIAL_OPTIONS);
 const parentescoEnum = codeEnumFromOptions(PARENTESCO_OPTIONS);
 
-/** Aceita array, string CSV ou valor único legado → array de códigos. */
 function codesArrayFromOptions<T extends string>(
   options: ReadonlyArray<{ value: T; label: string }>,
 ) {
@@ -134,7 +133,6 @@ const necessidadesEducacionaisArray = codesArrayFromOptions(
 
 export const coletaSchema = z
   .object({
-    /** Ciclo de monitoramento. Mobile tipicamente envia T2/T3. Default: T2 */
     momento: z
       .object({
         codigo: z
@@ -204,7 +202,6 @@ export const coletaSchema = z
       .object({
         meioTransporteEscola: meioTransporteEnum,
         tempoDeslocamentoMin: z.coerce.number().int().min(0),
-        /** Percentual 0–100; preenchido nas coletas mobile v2. */
         frequenciaEscolarPct: z.coerce
           .number()
           .min(0)
@@ -214,7 +211,6 @@ export const coletaSchema = z
         anoSerie: anoSerieEnum,
         turno: turnoEnum,
         necessidadeEducacionalEspecial: z.boolean(),
-        /** Códigos NEE (múltipla escolha). Aceita também descricaoNecessidade CSV legada. */
         necessidadesEducacionais: necessidadesEducacionaisArray.optional(),
         necessidadeOutraDescricao: z.string().trim().nullable().optional(),
         descricaoNecessidade: z.string().trim().nullable().optional(),
@@ -286,7 +282,7 @@ export const coletaSchema = z
           apoiosPrioritarios,
         };
       }),
-    /** Códigos do catálogo; vazio/omitido em importações v1. */
+    /** Vazio/omitido em importações v1. */
     barreiras: z.array(barreiraCodigoEnum).optional().default([]),
   })
   .superRefine((data, ctx) => {
@@ -305,7 +301,7 @@ export const coletaSchema = z
       });
     }
 
-    /** B-08 — Bloco A (mobile T2+; T1/planilha permanece flexível). */
+    // B-08 — Bloco A (mobile T2+; T1/planilha permanece flexível).
     const isMobileColeta = data.momento.codigo !== "T1";
     if (isMobileColeta) {
       if (!/^FAM-\d{3,6}$/.test(data.familia.codigoFamilia)) {
@@ -512,7 +508,6 @@ export const coletaSchema = z
 
 export type ColetaInput = z.infer<typeof coletaSchema>;
 
-/** Serializa arrays para colunas String do banco (CSV). */
 export function pesquisaToDbScalars(pesquisa: ColetaInput["pesquisa"]) {
   const soSemDispositivo =
     pesquisa.equipamentosEstudo.length === 1 &&

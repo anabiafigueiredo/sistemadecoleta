@@ -1,7 +1,5 @@
 /**
- * Normaliza categorias já gravadas (texto livre da planilha → código canônico).
- *
- * Uso (na pasta back-end):
+ * Uso:
  *   npx tsx prisma/normalize-categoricals.ts
  *   npx tsx prisma/normalize-categoricals.ts --dry-run
  */

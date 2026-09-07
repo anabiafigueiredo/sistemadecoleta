@@ -10,9 +10,8 @@ type Props<T extends string> = {
   onToggle: (value: T) => void;
   error?: string;
   hint?: string;
-  /** Máximo de opções selecionáveis (desmarca continua permitido). */
   max?: number;
-  /** Códigos ainda clicáveis no limite (ex.: "Nenhum", que substitui a seleção). */
+  /** Ainda clicáveis no limite (ex.: NENHUM, que substitui a seleção). */
   bypassMaxValues?: readonly T[];
 };
 

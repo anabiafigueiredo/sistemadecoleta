@@ -94,7 +94,6 @@ enum ApoioPrioritario {
   OUTRO
 }
 
-/// Ciclo de monitoramento (T1, T2, T3...) com data de referência.
 model MomentoColeta {
   id             String       @id @default(uuid())
   codigo         String       @unique
@@ -158,7 +157,7 @@ model Responsavel {
   cpf                  String?
   telefone             String?
   email                String?
-  /// Novos (v2); null nas importações da planilha. Códigos canônicos em texto.
+  /// Novo (v2); null nas importações da planilha.
   escolaridade         String?
   situacaoOcupacional  SituacaoOcupacional?
 
@@ -171,9 +170,8 @@ model PesquisaSocioeconomica {
   id                             String       @id @default(uuid())
   alunoId                        String
   momentoColetaId                String
-  /// PLANILHA = importação Excel; MOBILE = app.
   origem                         OrigemColeta
-  /// 1 = questionário base (Excel); 2 = formulário novo (mobile v2).
+  /// 1 = planilha; 2 = mobile v2.
   versaoQuestionario             Int          @default(1)
   meioTransporteEscola           String
   tempoDeslocamentoMin           Int
@@ -184,7 +182,7 @@ model PesquisaSocioeconomica {
   necessidadeEducacionalEspecial Boolean
   descricaoNecessidade           String?
   observacao                     String?
-  /// Bloco D (v2); CSV de códigos quando multi; null nas importações da planilha.
+  /// Bloco D (v2); CSV quando multi; null na planilha.
   equipamentoEstudo              String?
   disponibilidadeEquipamento     DisponibilidadeEquipamento?
   localEstudo                    LocalEstudo?
@@ -202,7 +200,6 @@ model PesquisaSocioeconomica {
   @@map("pesquisas_socioeconomicas")
 }
 
-/// Catálogo fixo de barreiras escolares (seed).
 model Barreira {
   id        String   @id @default(uuid())
   codigo    String   @unique

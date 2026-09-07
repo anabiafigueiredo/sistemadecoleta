@@ -79,7 +79,6 @@ function lookupFromLocal(
   };
 }
 
-/** Busca no servidor (se online) e/ou na fila local do aparelho. */
 export async function buscarCadastroPorCodigo(params: {
   codigoAluno?: string;
   codigoFamilia?: string;

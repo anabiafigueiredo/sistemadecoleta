@@ -5,7 +5,6 @@ import { isOnline } from "@/lib/sync";
 export type CadastroSelectOption = {
   value: string;
   label: string;
-  /** Texto adicional para busca (nomes etc.), além do label/código. */
   searchText?: string;
 };
 
@@ -33,7 +32,6 @@ function formatList(names: string[], max = 3): string {
   return `${names.slice(0, max).join(", ")} +${names.length - max}`;
 }
 
-/** Opções de alunos (servidor + fila local) para o select de “existente”. */
 export async function listarOpcoesAlunosExistentes(): Promise<
   CadastroSelectOption[]
 > {
@@ -97,7 +95,6 @@ type FamiliaAgg = {
   alunos: string[];
 };
 
-/** Opções de famílias (servidor via alunos + fila local). */
 export async function listarOpcoesFamiliasExistentes(): Promise<
   CadastroSelectOption[]
 > {

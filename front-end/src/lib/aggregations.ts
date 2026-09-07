@@ -1,4 +1,3 @@
-/** Agrupa itens e conta ocorrências por chave. */
 export function groupCount<T>(
   items: T[],
   keyFn: (item: T) => string,
@@ -11,7 +10,6 @@ export function groupCount<T>(
   return Array.from(map.entries()).map(([key, total]) => ({ key, total }));
 }
 
-/** Agrupa itens e calcula média de um valor numérico por chave. */
 export function groupAverage<T>(
   items: T[],
   keyFn: (item: T) => string,
@@ -39,7 +37,6 @@ export function average(values: number[]): number {
   return values.reduce((acc, n) => acc + n, 0) / values.length;
 }
 
-/** Mediana de valores numéricos (lista vazia → 0). */
 export function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -62,10 +59,7 @@ export function round2(value: number): number {
 /** Salário mínimo nacional 2026 (Decreto nº 12.797/2025). */
 export const SALARIO_MINIMO = 1621;
 
-/**
- * Faixas de renda familiar mensal em SM (ordem crescente).
- * Cada item: renda ≤ maxSm × SM (exceto a última, aberta).
- */
+/** Ordem crescente; cada faixa = renda ≤ maxSm × SM (última aberta). */
 export const RENDA_FAMILIAR_SM_FAIXAS = [
   { id: "ate_0_5", label: "Até 0,5 SM", maxSm: 0.5 },
   { id: "0_5_1", label: "Mais de 0,5 a 1 SM", maxSm: 1 },
@@ -84,7 +78,6 @@ export function faixaRendaFamiliarSm(rendaFamiliarMensal: number): string {
   return RENDA_FAMILIAR_SM_FAIXAS[RENDA_FAMILIAR_SM_FAIXAS.length - 1]!.label;
 }
 
-/** Conta famílias por faixa de SM, na ordem canônica (inclui faixas zeradas). */
 export function countByRendaFamiliarSmFaixa(
   rendasFamiliares: number[],
 ): Array<{ faixa: string; total: number }> {

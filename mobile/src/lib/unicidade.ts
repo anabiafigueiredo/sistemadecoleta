@@ -11,7 +11,6 @@ function norm(s: string): string {
   return s.trim().toUpperCase();
 }
 
-/** Conflitos locais (fila offline) e remotos (API) antes da gravação definitiva. */
 export async function verificarUnicidadeCodigos(
   payload: ColetaPayload,
   options?: { excludeLocalId?: string },

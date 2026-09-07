@@ -10,7 +10,6 @@ import type { DashboardStats } from "@/lib/types";
 
 const POLL_MS = 3_000;
 
-/** Visão do painel: consolidado (hoje) ou um ciclo isolado. */
 export type VisaoDashboard = "HOJE" | "CICLO_1" | "CICLO_2";
 
 const VISAO_OPTIONS: Array<{
@@ -52,13 +51,12 @@ function isAbortError(err: unknown) {
 
 export default function DashboardPage() {
   const [visao, setVisao] = useState<VisaoDashboard>("HOJE");
-  /** Visão à qual os `stats` exibidos pertencem (só avança quando o fetch termina). */
+  // Só avança quando o fetch da visão termina (evita flash de KPIs misturados).
   const [statsVisao, setStatsVisao] = useState<VisaoDashboard>("HOJE");
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [updating, setUpdating] = useState(false);
-  /** Loading explícito da troca de visão (liga no clique). */
   const [switchingVisao, setSwitchingVisao] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 

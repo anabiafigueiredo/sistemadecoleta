@@ -1,7 +1,6 @@
 /**
- * Catálogo canônico para ETL / normalize-categoricals.
  * Manter alinhado a front-end/src/lib/opcoes-questionario.ts
- * (listas e regras de match iguais — sem import cruzado entre pacotes).
+ * (sem import cruzado entre pacotes).
  */
 
 export type CatalogOption = { value: string; label: string };
@@ -248,7 +247,6 @@ export function canonicalCode(
   return matchOption(options, raw)?.value ?? null;
 }
 
-/** Texto/código → código canônico; se não casar, mantém o texto limpo. */
 export function toCanonicalCode(
   options: ReadonlyArray<CatalogOption>,
   raw: string | null | undefined,

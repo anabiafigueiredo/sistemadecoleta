@@ -12,7 +12,6 @@ import {
 type Option<T extends string> = {
   value: T;
   label: string;
-  /** Texto extra só para filtro (ex.: nomes). */
   searchText?: string;
 };
 

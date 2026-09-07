@@ -17,7 +17,6 @@ function nextFromCodes(codes: string[], prefix: "FAM" | "ALU"): string {
   return `${prefix}-${String(next).padStart(width, "0")}`;
 }
 
-/** Próximos códigos sequenciais livres (FAM / ALU). */
 export async function GET() {
   try {
     const [familias, alunos] = await Promise.all([

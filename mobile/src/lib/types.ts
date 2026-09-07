@@ -1,5 +1,3 @@
-/** Payload alinhado a POST /api/coleta */
-
 import type {
   AcompanhamentoFamiliarValue,
   AnoSerieValue,
@@ -42,11 +40,9 @@ export type FamiliaPayload = {
 export type AlunoPayload = {
   codigoAluno: string;
   nome: string;
-  /** ISO YYYY-MM-DD — obrigatório nas coletas mobile (B-08). */
+  /** ISO YYYY-MM-DD (B-08). */
   dataNascimento: string;
-  /** Opcional estruturado (M/F). */
   sexo?: "M" | "F" | null;
-  /** Opcional; quando informado, deve ser CPF válido. */
   cpf?: string | null;
 };
 
@@ -63,22 +59,17 @@ export type ResponsavelPayload = {
 export type PesquisaPayload = {
   meioTransporteEscola: MeioTransporteValue;
   tempoDeslocamentoMin: number;
-  /** Percentual 0–100 da frequência escolar do aluno. */
   frequenciaEscolarPct?: number | null;
   anoSerie: AnoSerieValue;
   turno: TurnoValue;
   necessidadeEducacionalEspecial: boolean;
-  /** Códigos do catálogo NEE (múltipla escolha); null quando não tem. */
   necessidadesEducacionais?: NecessidadeEducacionalValue[] | null;
-  /** Texto livre quando OUTRA está entre as necessidades. */
   necessidadeOutraDescricao?: string | null;
   observacao?: string | null;
-  /** Um ou mais equipamentos; NENHUM é exclusivo. */
   equipamentosEstudo: EquipamentoEstudoValue[];
   disponibilidadeEquipamento: DisponibilidadeEquipamentoValue;
   localEstudo: LocalEstudoValue;
   acompanhamentoFamiliar: AcompanhamentoFamiliarValue;
-  /** Até 2 áreas; NENHUM é exclusivo. */
   apoiosPrioritarios: ApoioPrioritarioValue[];
 };
 
@@ -88,11 +79,9 @@ export type ColetaPayload = {
   aluno: AlunoPayload;
   responsavel: ResponsavelPayload;
   pesquisa: PesquisaPayload;
-  /** Códigos do catálogo de barreiras (v2). */
   barreiras: BarreiraValue[];
 };
 
-/** Registro local (offline-first) */
 export type ColetaLocal = {
   id: string;
   sincronizado: boolean;
@@ -103,7 +92,6 @@ export type ColetaLocal = {
   payload: ColetaPayload;
 };
 
-/** Estado visual do formulário (strings + flags) */
 export type ColetaFormState = {
   momentoCodigo: "" | "T2" | "T3";
   codigoFamilia: string;
@@ -139,7 +127,6 @@ export type ColetaFormState = {
   /** null = ainda não respondido */
   necessidadeEducacionalEspecial: boolean | null;
   necessidadesEducacionais: NecessidadeEducacionalValue[];
-  /** Texto livre quando OUTRA está selecionada. */
   necessidadeOutraDescricao: string;
   observacao: string;
   equipamentosEstudo: EquipamentoEstudoValue[];

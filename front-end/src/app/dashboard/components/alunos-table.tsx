@@ -58,9 +58,7 @@ export function AlunosTable({
   totalColetasV2,
 }: {
   refreshKey?: number;
-  /** Filtro global do painel (null = visão consolidada). */
   origemFiltro?: OrigemFiltro;
-  /** Totais do painel — exibidos junto à consulta de entrevistas. */
   totalColetas?: number;
   totalColetasV2?: number;
 }) {

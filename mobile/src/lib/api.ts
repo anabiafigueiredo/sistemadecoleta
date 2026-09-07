@@ -68,7 +68,6 @@ export async function postColeta(payload: ColetaPayload): Promise<{
   return { pesquisaId: data?.pesquisa?.id ?? null };
 }
 
-/** Espelha `AlunoListItem` do front (GET /api/alunos). */
 export type AlunoRemote = {
   id: string;
   codigoAluno: string;
@@ -185,7 +184,6 @@ export type CodigosLookup = {
   } | null;
 };
 
-/** Existência exata de códigos no servidor (unicidade / vínculo). */
 export async function fetchCodigosLookup(params: {
   codigoAluno?: string;
   codigoFamilia?: string;
@@ -207,7 +205,6 @@ export async function fetchProximosCodigos(): Promise<CodigosProximos> {
   return parseEnvelope<CodigosProximos>(res);
 }
 
-/** IDs de pesquisas ainda existentes no servidor (+ chaves aluno|ciclo). */
 export async function fetchRemoteColetaIndex(): Promise<{
   pesquisaIds: Set<string>;
   alunoMomentoKeys: Set<string>;

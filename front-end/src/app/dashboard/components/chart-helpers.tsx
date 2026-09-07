@@ -86,7 +86,6 @@ type TickProps = {
   payload?: { value?: string | number };
 };
 
-/** Eixo Y (barras horizontais): rótulos com quebra de linha. */
 export function WrappedYTick({
   x = 0,
   y = 0,
@@ -144,7 +143,6 @@ export function ChartTooltipContent({
   const pct = extra?.percentLabel;
   const unit = extra?.unitLabel ?? "registros";
 
-  // Ex.: "Wi-Fi residencial • 18 famílias • 72,0%"
   if (category && total != null && pct) {
     return (
       <div

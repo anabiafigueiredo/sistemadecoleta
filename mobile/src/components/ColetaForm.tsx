@@ -102,7 +102,6 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
-/** Garante que o loading fique visível mesmo se a operação for rápida. */
 async function withMinDuration<T>(
   work: Promise<T>,
   minMs = 450,
@@ -461,7 +460,6 @@ export function ColetaForm({ initial, onSaved }: Props) {
       }
       return;
     }
-    // Preparando lista: limpa pré-preenchimento de família até escolher um aluno
     setOrigemFamilia("novo");
     setCadastroBusyMsg("Preparando seleção de aluno existente…");
     try {

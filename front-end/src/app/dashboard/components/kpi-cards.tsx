@@ -16,7 +16,6 @@ import type { DashboardStats } from "@/lib/types";
 type Kpi = {
   label: string;
   value: string;
-  /** Métrica complementar / contexto (não criar card extra). */
   complement: string;
   icon: LucideIcon;
 };

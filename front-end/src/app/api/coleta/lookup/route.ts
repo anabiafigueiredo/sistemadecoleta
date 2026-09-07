@@ -33,10 +33,6 @@ function familiaDto(familia: {
   };
 }
 
-/**
- * Consulta cadastro por código (existente) para reavaliação / irmão na mesma família.
- * GET /api/coleta/lookup?codigoAluno=ALU-1001&codigoFamilia=FAM-001
- */
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;

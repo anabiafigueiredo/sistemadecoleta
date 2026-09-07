@@ -12,78 +12,37 @@ export type DashboardStats = {
   totalAlunos: number;
   totalFamilias: number;
   totalColetas: number;
-  /** Entrevistas com questionário v2 (mobile novo) — base para indicadores novos. */
   totalColetasV2: number;
-  /** Média da renda familiar mensal (unidade: família). */
   rendaMediaFamiliar: number;
-  /** Mediana de (renda familiar ÷ moradores); unidade: família. */
+  /** Mediana de (renda ÷ moradores) por família. */
   rendaPerCapitaMediana: number;
-  /**
-   * % de famílias com internet em casa.
-   * Numerador: famílias com possuiInternetCasa; denominador: total de famílias.
-   */
   percentualComInternet: number;
-  /**
-   * % de famílias com benefício social.
-   * Numerador: recebeBeneficioSocial; denominador: total de famílias.
-   */
   percentualComBeneficio: number;
-  /**
-   * % de entrevistas com NEE marcada.
-   * Numerador: pesquisas com necessidadeEducacionalEspecial;
-   * denominador: total de pesquisas (todas as origens/versões).
-   */
   percentualComNee: number;
-  /**
-   * % de entrevistas do app com ≥1 barreira real (exceto NENHUMA).
-   * Numerador: coletasV2ComBarreira; denominador: totalColetasV2.
-   * Mantido para avisos; a análise principal vai no gráfico de barreiras.
-   */
+  /** v2 com ≥1 barreira real (exceto NENHUMA); aviso — gráfico é a fonte principal. */
   percentualComBarreiraV2: number;
-  /** Contagem absoluta do numerador de percentualComBarreiraV2. */
   coletasV2ComBarreira: number;
-  /**
-   * Média de frequenciaEscolarPct.
-   * Denominador: entrevistas com frequência informada (planilha + app).
-   */
   frequenciaEscolarMediaPct: number;
-  /** Quantidade de entrevistas com frequência preenchida. */
   totalComFrequenciaInformada: number;
-  /** Entrevistas com frequência < 75% (mínimo obrigatório em Manaus). */
+  /** Frequência < 75% (mínimo obrigatório em Manaus). */
   comFrequenciaAbaixo75: number;
-  /**
-   * % com frequência < 75%.
-   * Denominador: totalComFrequenciaInformada.
-   */
   percentualFrequenciaAbaixo75: number;
-  /**
-   * % com local adequado para estudar (localEstudo = SIM).
-   * Denominador: entrevistas do app com localEstudo informado.
-   */
   percentualLocalEstudoAdequado: number;
   totalLocalEstudoInformado: number;
-  /**
-   * % com acompanhamento familiar regular (Sempre).
-   * Denominador: entrevistas do app com acompanhamento informado.
-   */
   percentualAcompanhamentoRegular: number;
   totalAcompanhamentoInformado: number;
-  /** Média de tempoDeslocamentoMin; unidade: entrevista (pesquisa). */
   tempoMedioDeslocamentoMin: number;
-  /** Há entrevistas v1 e v2 — gráficos v2 devem avisar amostra parcial. */
+  /** v1+v2 misturados — gráficos v2 devem avisar amostra parcial. */
   amostraV2Parcial: boolean;
   momentos: MomentoColetaResumo[];
-  /** Famílias por faixa de renda familiar mensal (em SM). */
   rendaFamiliarFaixas: Array<{ faixa: string; total: number }>;
-  /** Tipo de acesso à internet — unidade família (B-10). */
   internetAcessoDistribuicao: Array<{ tipo: string; total: number }>;
-  /** Principais barreiras — só entrevistas v2; exclui NENHUMA (B-10). */
+  /** Só v2; exclui NENHUMA. */
   barreirasDistribuicao: Array<{
     codigo: string;
     nome: string;
     total: number;
   }>;
-  /** Apoio prioritário — só entrevistas v2 (B-10). */
   apoioPrioritarioDistribuicao: Array<{ apoio: string; total: number }>;
   rendaPorBairro: Array<{
     bairro: string;

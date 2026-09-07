@@ -1,5 +1,3 @@
-/** Máscaras de digitação (somente visual; payload envia dígitos limpos). */
-
 export function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
@@ -22,7 +20,6 @@ export function maskPhone(value: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
-/** Data BR: digita só números → DD/MM/AAAA */
 export function maskDateBr(value: string): string {
   const d = onlyDigits(value).slice(0, 8);
   if (d.length <= 2) return d;
@@ -30,10 +27,7 @@ export function maskDateBr(value: string): string {
   return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
 }
 
-/**
- * Valida CPF (dígitos verificadores). Vazio = ok (campo opcional).
- * Retorna mensagem de erro ou null se válido.
- */
+/** CPF opcional: vazio ok; preenchido valida dígitos verificadores. */
 export function cpfErrorMessage(value: string): string | null {
   const cpf = onlyDigits(value);
   if (!cpf) return null;
@@ -86,13 +80,11 @@ export function formatCurrencyDisplay(value: number): string {
   });
 }
 
-/** FAM-001 — só dígitos; prefixo aplicado automaticamente. */
 export function maskCodigoFamilia(value: string): string {
   const d = onlyDigits(value).slice(0, 6);
   return d ? `FAM-${d}` : "";
 }
 
-/** ALU-1001 — só dígitos; prefixo aplicado automaticamente. */
 export function maskCodigoAluno(value: string): string {
   const d = onlyDigits(value).slice(0, 8);
   return d ? `ALU-${d}` : "";

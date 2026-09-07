@@ -1,9 +1,3 @@
-/**
- * Normaliza nomes de bairro para matching entre API e GeoJSON.
- * Aliases cobrem variações curtas vs. oficiais (ex.: São José → São José Operário).
- * Códigos canônicos (PETROPOLIS) resolvem via BAIRROS_MANAUS.geoNome.
- */
-
 import {
   BAIRROS_MANAUS,
   BAIRROS_SEM_MAPA,
@@ -30,17 +24,12 @@ export function normalizeBairroName(value: string): string {
     .trim();
 }
 
-/** Resolve o nome da API para a chave canônica usada no mapa. */
 export function canonicalBairroKey(apiName: string): string {
   const n = normalizeBairroName(apiName);
   return ALIASES[n] ?? n;
 }
 
-/**
- * Encontra a feature GeoJSON cujo nome casa com o bairro da API.
- * Aceita código canônico (PETROPOLIS), rótulo ou texto legado.
- * NAO_SABE / OUTRO → null (sem geocoding).
- */
+/** Match API ↔ GeoJSON; NAO_SABE / OUTRO → null. */
 export function matchGeoBairroName(
   apiName: string,
   geoNames: string[],

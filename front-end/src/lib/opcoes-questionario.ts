@@ -1,5 +1,3 @@
-/** Opções padronizadas do questionário v2 (listas oficiais). */
-
 /** Use só quando o responsável pode de fato não conhecer a resposta.
  * Presente em: escolaridade dos adultos, transporte, ano/série, tipo de internet, frequência.
  * Não usar em sim/não, parentesco, turno, etapa, etc.
@@ -16,10 +14,7 @@ export const TIPO_LOCALIDADE_OPTIONS = [
   { value: "OUTRA", label: "Outra" },
 ] as const;
 
-/**
- * Bairros oficiais de Manaus (GeoJSON manaus-bairros).
- * `geoNome` = propriedade `nome` no mapa; códigos NAO_SABE/OUTRO não geocodificam.
- */
+/** Bairros oficiais (GeoJSON manaus-bairros); `geoNome` = propriedade `nome` no mapa. */
 export const BAIRROS_MANAUS = [
   { value: "ADRIANOPOLIS", label: "Adrianópolis", geoNome: "ADRIANÓPOLIS" },
   { value: "ALEIXO", label: "Aleixo", geoNome: "ALEIXO" },
@@ -146,7 +141,7 @@ export const BAIRRO_OPTIONS = [
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
-/** Códigos que não entram no mapa de renda. */
+/** NAO_SABE / OUTRO não geocodificam. */
 export const BAIRROS_SEM_MAPA = new Set(["NAO_SABE", "OUTRO"]);
 
 export const ESCOLARIDADE_OPTIONS = [
@@ -224,7 +219,7 @@ export const APOIO_PRIORITARIO_OPTIONS = [
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
-/** Catálogo de barreiras (B-05). Código NENHUMA é exclusivo. */
+/** NENHUMA é exclusivo (não combina com outras barreiras). */
 export const BARREIRA_NENHUMA = "NENHUMA" as const;
 
 export const BARREIRA_OPTIONS = [
@@ -244,7 +239,6 @@ export const BARREIRA_OPTIONS = [
   { value: BARREIRA_NENHUMA, label: "Nenhuma" },
 ] as const;
 
-/** B-06 — listas padronizadas (substituem texto livre no mobile v2). */
 export const MEIO_TRANSPORTE_OPTIONS = [
   { value: "A_PE", label: "A pé" },
   { value: "BICICLETA", label: "Bicicleta" },
@@ -306,7 +300,6 @@ export const PARENTESCO_OPTIONS = [
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
-/** Necessidades / condições que podem demandar apoio escolar (múltipla escolha). */
 export const NECESSIDADE_OUTRA = "OUTRA" as const;
 
 export const NECESSIDADE_EDUCACIONAL_OPTIONS = [
@@ -328,7 +321,7 @@ export const NECESSIDADE_EDUCACIONAL_OPTIONS = [
 
 export const EQUIPAMENTO_NENHUM = "NENHUM" as const;
 export const EQUIPAMENTO_NAO_SABE = NAO_SABE.value;
-/** Códigos exclusivos em equipamentos (não combinam com dispositivos). */
+/** NENHUM / NAO_SABE são exclusivos (não combinam com dispositivos). */
 export const EQUIPAMENTO_EXCLUSIVOS = [
   EQUIPAMENTO_NENHUM,
   EQUIPAMENTO_NAO_SABE,
@@ -369,7 +362,7 @@ export type ParentescoValue = (typeof PARENTESCO_OPTIONS)[number]["value"];
 export type NecessidadeEducacionalValue =
   (typeof NECESSIDADE_EDUCACIONAL_OPTIONS)[number]["value"];
 
-/** Alterna código; exclusivos limpam as demais e vice-versa; max limita não-exclusivos. */
+/** Exclusivos (ex. NENHUM) limpam as demais e vice-versa; max limita não-exclusivos. */
 export function toggleExclusiveCodes(
   selected: readonly string[],
   code: string,
@@ -393,7 +386,6 @@ export function toggleExclusiveCodes(
   return [...withoutExclusive, code];
 }
 
-/** Alterna código; exclusive limpa as demais e vice-versa; max limita não-exclusivos. */
 export function toggleExclusiveCode(
   selected: readonly string[],
   code: string,
@@ -415,7 +407,6 @@ export function toggleEquipamentoEstudo(
   return toggleExclusiveCodes(selected, code, EQUIPAMENTO_EXCLUSIVOS);
 }
 
-/** Alterna até `max` códigos (sem exclusivo). */
 export function toggleMaxCodes(
   selected: readonly string[],
   code: string,
@@ -428,7 +419,6 @@ export function toggleMaxCodes(
   return [...selected, code];
 }
 
-/** Alterna barreira; NENHUMA limpa as demais e vice-versa. */
 export function toggleBarreira(
   selected: readonly string[],
   code: string,
@@ -436,7 +426,6 @@ export function toggleBarreira(
   return toggleExclusiveCode(selected, code, BARREIRA_NENHUMA);
 }
 
-/** "COMPUTADOR,CELULAR" ↔ ["COMPUTADOR","CELULAR"]. */
 export function splitCodes(raw: string | null | undefined): string[] {
   if (raw == null) return [];
   const trimmed = String(raw).trim();
@@ -452,10 +441,9 @@ export function joinCodes(codes: readonly string[]): string | null {
   return unique.length ? unique.join(",") : null;
 }
 
-/** Separador entre códigos CSV e texto livre de “Outra” em descricaoNecessidade. */
+/** Códigos CSV + texto livre de OUTRA na mesma coluna (`cod1,cod2###texto`). */
 export const NEE_OUTRA_SEP = "###" as const;
 
-/** Persiste códigos + texto de OUTRA numa única coluna. */
 export function encodeDescricaoNecessidade(
   codes: readonly string[],
   outraTexto?: string | null,
@@ -469,7 +457,6 @@ export function encodeDescricaoNecessidade(
   return base;
 }
 
-/** Lê códigos e texto de OUTRA a partir de descricaoNecessidade. */
 export function parseDescricaoNecessidade(
   raw: string | null | undefined,
 ): { codes: string[]; outraTexto: string } {
@@ -507,7 +494,6 @@ function normalizeOptionKey(value: string): string {
     .trim();
 }
 
-/** Códigos/labels legados → código canônico atual. */
 const LEGACY_CODE_ALIASES: Record<string, string> = {
   SEM_ESCOLARIDADE: "SEM_OU_FUND_INCOMPLETO",
   FUNDAMENTAL_INCOMPLETO: "SEM_OU_FUND_INCOMPLETO",
@@ -519,7 +505,6 @@ const LEGACY_CODE_ALIASES: Record<string, string> = {
   FREQUENTEMENTE: "SEMPRE",
 };
 
-/** Resolve código ou texto legado para a opção oficial (se houver). */
 export function matchOption(
   options: ReadonlyArray<{ value: string; label: string; geoNome?: string }>,
   raw: string | null | undefined,
@@ -559,7 +544,6 @@ export function matchOption(
   return null;
 }
 
-/** Código canônico (BOLSA_FAMILIA) a partir de código ou texto legado. */
 export function canonicalCode(
   options: ReadonlyArray<{ value: string; label: string }>,
   raw: string | null | undefined,
@@ -567,10 +551,7 @@ export function canonicalCode(
   return matchOption(options, raw)?.value ?? null;
 }
 
-/**
- * Preferir agrupar por canonicalCode e só então exibir o label.
- * A normalização categórica do dashboard ocorre aqui (API), não nos gráficos.
- */
+/** Agrupar por código canônico na API; rótulo só na resposta (não nos gráficos). */
 export function canonicalLabel(
   options: ReadonlyArray<{ value: string; label: string }>,
   raw: string | null | undefined,
@@ -582,7 +563,6 @@ export function canonicalLabel(
   return v || fallback;
 }
 
-/** Rótulo para UI; vazio → "—". Também unifica código e texto legado. */
 export function labelOf(
   options: ReadonlyArray<{ value: string; label: string }>,
   value: string | null | undefined,

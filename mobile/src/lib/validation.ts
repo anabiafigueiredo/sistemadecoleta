@@ -504,7 +504,6 @@ function birthDateErrorMessage(raw: string): string | null {
 
 export type ColetaFormErrors = Partial<Record<keyof ColetaFormState, string>>;
 
-/** Etapas do wizard — estrutura 2.1–2.5. */
 export const COLETA_WIZARD_STEPS = [
   {
     id: "aluno",
@@ -708,7 +707,6 @@ export function validateColetaForm(form: ColetaFormState): {
   return { ok: true, errors: {}, payload };
 }
 
-/** Aceita DD/MM/AAAA ou AAAA-MM-DD → ISO date string */
 function toIsoDate(raw: string): string | null {
   const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
   if (br) {
@@ -768,7 +766,6 @@ export function emptyForm(): ColetaFormState {
 export function formFromPayload(payload: ColetaPayload): ColetaFormState {
   const codigo = payload.momento.codigo === "T3" ? "T3" : "T2";
   const pesquisa = payload.pesquisa as ColetaPayload["pesquisa"] & {
-    /** legado offline */
     equipamentoEstudo?: string;
     apoioPrioritario?: string;
     descricaoNecessidade?: string | null;

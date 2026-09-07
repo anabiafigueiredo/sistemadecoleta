@@ -77,7 +77,6 @@ function avancarApos(
   return nextFromCodes([candidato, ...evitar], prefix);
 }
 
-/** Gera só o próximo código de aluno (mantém família intacta no formulário). */
 export async function gerarCodigoAluno(opts?: {
   evitar?: readonly string[];
 }): Promise<string> {
@@ -85,7 +84,6 @@ export async function gerarCodigoAluno(opts?: {
   return avancarApos(base, "ALU", opts?.evitar);
 }
 
-/** Gera só o próximo código de família. */
 export async function gerarCodigoFamilia(opts?: {
   evitar?: readonly string[];
 }): Promise<string> {

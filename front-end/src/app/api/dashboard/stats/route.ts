@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       versaoQuestionario: 2,
       ...pesquisaWhere,
     };
-    /** Famílias/alunos do ciclo: quem tem ao menos uma entrevista da origem. */
+    // Famílias/alunos do ciclo: quem tem ao menos uma entrevista da origem.
     const familiaWhere = origem
       ? {
           alunos: {
@@ -129,7 +129,6 @@ export async function GET(request: Request) {
       p.barreiras.some((pb) => pb.barreira.codigo !== BARREIRA_NENHUMA),
     ).length;
 
-    /** Frequência escolar — entrevistas com % informada (planilha + app). */
     const FREQUENCIA_MINIMA_MANAUS = 75;
     const frequencias = pesquisas
       .map((p) =>
@@ -142,7 +141,7 @@ export async function GET(request: Request) {
       (v) => v < FREQUENCIA_MINIMA_MANAUS,
     ).length;
 
-    /** Local adequado = SIM; base = entrevistas do app com resposta. */
+    // Local adequado = SIM; base = entrevistas do app com resposta (excl. NAO_SABE).
     const localEstudoInformado = pesquisasV2.filter((p) => {
       if (p.localEstudo == null || p.localEstudo.trim() === "") return false;
       const code =
@@ -180,7 +179,7 @@ export async function GET(request: Request) {
       return code === "SEMPRE";
     }).length;
 
-    /** Distribuições: agrupar por código canônico; rótulo só na resposta. */
+    // Agrupar por código canônico; rótulo só na resposta.
     const internetAcessoDistribuicao = groupCount(familias, (f) => {
       if (!f.possuiInternetCasa) return "Sem internet";
       const raw = f.tipoAcessoInternet?.trim();
@@ -201,7 +200,6 @@ export async function GET(request: Request) {
 
     const rendaFamiliarFaixas = countByRendaFamiliarSmFaixa(rendas);
 
-    /** Contagem de menções a cada barreira (exceto NENHUMA) — chave = código. */
     const barreiraCounts = new Map<string, number>();
     for (const p of pesquisasV2) {
       for (const pb of p.barreiras) {
@@ -312,7 +310,7 @@ export async function GET(request: Request) {
       tempoMedioDeslocamentoMin: Math.round(
         average(pesquisas.map((p) => p.tempoDeslocamentoMin)),
       ),
-      /** true quando há v1 e v2 misturados — avisos nos gráficos v2. */
+      // true quando há v1 e v2 misturados — avisos nos gráficos v2.
       amostraV2Parcial: totalColetasV2 > 0 && totalColetasV2 < totalColetas,
       momentos: momentos.map((m) => ({
         id: m.id,
