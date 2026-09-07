@@ -1,11 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  Label,
+  LabelList,
   Legend,
   Pie,
   PieChart,
@@ -21,7 +24,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatPercent } from "@/lib/utils";
 import type { DashboardStats } from "@/lib/types";
+import {
+  ChartTooltipContent,
+  WrappedYTick,
+  horizontalChartHeight,
+  useChartTooltipTrigger,
+  useIsNarrow,
+  withPercents,
+} from "./chart-helpers";
 
 const RendaBairroMap = dynamic(
   () => import("./renda-bairro-map").then((m) => m.RendaBairroMap),
@@ -46,15 +58,16 @@ const CHART_COLORS = [
   "#57534e",
 ];
 
-function shortenLabel(value: string, max = 10) {
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-}
+const LABEL_STYLE = { fill: "#3f4f48", fontSize: 11, fontWeight: 600 };
+
+/** Pizza só com poucas fatias; acima disso vira barras horizontais. */
+const PIE_MAX_CATEGORIES = 5;
 
 function V2BaseNotice({ stats }: { stats: DashboardStats }) {
   if (stats.totalColetasV2 === 0) {
     return (
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        Base v2 ainda vazia — indicador aguarda entrevistas mobile.
+        Ainda sem entrevistas pelo aplicativo — indicador aguarda novas coletas.
       </p>
     );
   }
@@ -62,7 +75,7 @@ function V2BaseNotice({ stats }: { stats: DashboardStats }) {
   return (
     <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
       Amostra parcial: {stats.totalColetasV2} de {stats.totalColetas} entrevistas
-      são v2 (mobile). Base: entrevistas mobile v2.
+      foram pelo aplicativo. Base deste gráfico: entrevistas do app.
     </p>
   );
 }
@@ -75,11 +88,216 @@ function EmptyChart({ message }: { message: string }) {
   );
 }
 
+function ChartShell({
+  children,
+  height,
+  className = "chart-box",
+}: {
+  children: ReactNode;
+  height?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={className}
+      style={height != null ? { height } : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+type PieDatum = {
+  name: string;
+  total: number;
+  percentLabel: string;
+  unitLabel: string;
+};
+
+function PercentPie({
+  data,
+  nameKey,
+  trigger,
+  unitLabel = "registros",
+}: {
+  data: { total: number; percentLabel: string; [key: string]: string | number }[];
+  nameKey: string;
+  trigger: "hover" | "click";
+  unitLabel?: string;
+}) {
+  const pieData: PieDatum[] = data.map((d) => ({
+    name: String(d[nameKey]),
+    total: d.total,
+    percentLabel: d.percentLabel,
+    unitLabel,
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+        <Pie
+          data={pieData}
+          dataKey="total"
+          nameKey="name"
+          cx="50%"
+          cy="40%"
+          innerRadius={36}
+          outerRadius={62}
+          paddingAngle={2}
+          isAnimationActive={false}
+          label={({ percent }) => {
+            const p = typeof percent === "number" ? percent : 0;
+            if (p < 0.06) return "";
+            return formatPercent(p * 100, 1);
+          }}
+          labelLine={false}
+        >
+          {pieData.map((_, i) => (
+            <Cell
+              key={`slice-${i}`}
+              fill={CHART_COLORS[i % CHART_COLORS.length]}
+            />
+          ))}
+        </Pie>
+        <Tooltip
+          trigger={trigger}
+          content={(props) => <ChartTooltipContent {...props} />}
+        />
+        <Legend
+          verticalAlign="bottom"
+          wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+          formatter={(value, entry) => {
+            const pct = (entry.payload as PieDatum | undefined)?.percentLabel;
+            return pct ? `${value} · ${pct}` : String(value);
+          }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function HorizontalBars({
+  data,
+  categoryKey,
+  trigger,
+  yAxisWidth = 100,
+  maxChars = 14,
+  unitLabel = "registros",
+  xAxisLabel,
+  yAxisLabel,
+}: {
+  data: Array<Record<string, string | number> & { total: number }>;
+  categoryKey: string;
+  trigger: "hover" | "click";
+  yAxisWidth?: number;
+  maxChars?: number;
+  unitLabel?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}) {
+  const chartData = withPercents(data).map((d) => ({
+    ...d,
+    unitLabel,
+    name: String(d[categoryKey]),
+  }));
+  const height = horizontalChartHeight(chartData.length, 44, 200);
+
+  return (
+    <ChartShell
+      height={height + (xAxisLabel ? 20 : 0)}
+      className="chart-box chart-box-auto"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          layout="vertical"
+          data={chartData}
+          margin={{
+            left: yAxisLabel ? 36 : 4,
+            right: 44,
+            top: 8,
+            bottom: xAxisLabel ? 36 : 4,
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#d6ddd8" horizontal={false} />
+          <XAxis
+            type="number"
+            domain={[0, "auto"]}
+            tick={{ fontSize: 11 }}
+            tickFormatter={(v) => `${v}%`}
+          >
+            {xAxisLabel ? (
+              <Label
+                value={xAxisLabel}
+                position="bottom"
+                offset={12}
+                style={{ fontSize: 11, fill: "#5b6b64" }}
+              />
+            ) : null}
+          </XAxis>
+          <YAxis
+            type="category"
+            dataKey={categoryKey}
+            width={yAxisWidth}
+            interval={0}
+            tick={<WrappedYTick maxChars={maxChars} maxLines={2} />}
+          >
+            {yAxisLabel ? (
+              <Label
+                value={yAxisLabel}
+                angle={-90}
+                position="left"
+                offset={8}
+                style={{ fontSize: 11, fill: "#5b6b64", textAnchor: "middle" }}
+              />
+            ) : null}
+          </YAxis>
+          <Tooltip
+            trigger={trigger}
+            content={(props) => <ChartTooltipContent {...props} />}
+          />
+          <Bar
+            dataKey="percent"
+            name="%"
+            radius={[0, 8, 8, 0]}
+            maxBarSize={28}
+            isAnimationActive={false}
+          >
+            {chartData.map((_, i) => (
+              <Cell
+                key={`hbar-${i}`}
+                fill={CHART_COLORS[i % CHART_COLORS.length]}
+              />
+            ))}
+            <LabelList
+              dataKey="percentLabel"
+              position="right"
+              style={LABEL_STYLE}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartShell>
+  );
+}
+
 export function DashboardCharts({ stats }: { stats: DashboardStats }) {
+  const trigger = useChartTooltipTrigger();
+  const narrow = useIsNarrow(640);
+
   const barreirasData = stats.barreirasDistribuicao.map((b) => ({
     nome: b.nome,
     total: b.total,
   }));
+
+  const internetData = withPercents(stats.internetAcessoDistribuicao);
+  const transporteTop = stats.transporteDistribuicao[0] ?? null;
+  const transporteTopPct =
+    transporteTop && stats.transporteDistribuicao.length > 0
+      ? withPercents(stats.transporteDistribuicao)[0]!.percentLabel
+      : null;
+
+  const yWidth = narrow ? 88 : 112;
+  const yChars = narrow ? 12 : 16;
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
@@ -88,58 +306,40 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
           Visualizações prioritárias
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="chart-enter min-w-0">
+          <Card className="chart-enter min-w-0 overflow-hidden">
             <CardHeader className="p-4 pb-1 sm:p-5 sm:pb-2">
               <CardTitle className="text-base sm:text-lg">
-                Renda per capita por faixa
+                Distribuição das famílias por faixa de renda mensal
               </CardTitle>
               <CardDescription>
-                Famílias agrupadas por renda mensal ÷ moradores
+                Faixas em salário mínimo (SM = R$ 1.621,00).
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                {stats.rendaPerCapitaFaixas.every((f) => f.total === 0) ? (
+              {stats.rendaFamiliarFaixas.every((f) => f.total === 0) ? (
+                <ChartShell>
                   <EmptyChart message="Sem famílias para agrupar." />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={stats.rendaPerCapitaFaixas}
-                      margin={{ left: 0, right: 8, top: 8, bottom: 8 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d6ddd8" />
-                      <XAxis
-                        dataKey="faixa"
-                        tick={{ fontSize: 10 }}
-                        interval={0}
-                        angle={-18}
-                        textAnchor="end"
-                        height={56}
-                        tickFormatter={(v) => shortenLabel(String(v), 14)}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        width={28}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="total" name="Famílias" radius={[8, 8, 0, 0]}>
-                        {stats.rendaPerCapitaFaixas.map((_, i) => (
-                          <Cell
-                            key={`faixa-${i}`}
-                            fill={CHART_COLORS[i % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                </ChartShell>
+              ) : (
+                <HorizontalBars
+                  data={stats.rendaFamiliarFaixas.map((f) => ({
+                    nome: f.faixa,
+                    total: f.total,
+                  }))}
+                  categoryKey="nome"
+                  trigger={trigger}
+                  yAxisWidth={yWidth}
+                  maxChars={yChars}
+                  unitLabel="famílias"
+                  xAxisLabel="Percentual de famílias"
+                  yAxisLabel="Faixas de renda familiar mensal"
+                />
+              )}
             </CardContent>
           </Card>
 
           <Card
-            className="chart-enter min-w-0"
+            className="chart-enter min-w-0 overflow-hidden"
             style={{ animationDelay: "60ms" }}
           >
             <CardHeader className="p-4 pb-1 sm:p-5 sm:pb-2">
@@ -151,43 +351,40 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                {stats.internetAcessoDistribuicao.length === 0 ? (
+              {stats.internetAcessoDistribuicao.length === 0 ? (
+                <ChartShell>
                   <EmptyChart message="Sem dados de internet." />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.internetAcessoDistribuicao}
-                        dataKey="total"
-                        nameKey="tipo"
-                        cx="50%"
-                        cy="42%"
-                        innerRadius={40}
-                        outerRadius={68}
-                        paddingAngle={2}
-                      >
-                        {stats.internetAcessoDistribuicao.map((_, i) => (
-                          <Cell
-                            key={`net-${i}`}
-                            fill={CHART_COLORS[i % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend
-                        verticalAlign="bottom"
-                        wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                </ChartShell>
+              ) : stats.internetAcessoDistribuicao.length > PIE_MAX_CATEGORIES ? (
+                <HorizontalBars
+                  data={stats.internetAcessoDistribuicao.map((d) => ({
+                    tipo: d.tipo,
+                    total: d.total,
+                  }))}
+                  categoryKey="tipo"
+                  trigger={trigger}
+                  yAxisWidth={yWidth}
+                  maxChars={yChars}
+                  unitLabel="famílias"
+                />
+              ) : (
+                <ChartShell>
+                  <PercentPie
+                    data={internetData.map((d) => ({
+                      ...d,
+                      tipo: d.tipo,
+                    }))}
+                    nameKey="tipo"
+                    trigger={trigger}
+                    unitLabel="famílias"
+                  />
+                </ChartShell>
+              )}
             </CardContent>
           </Card>
 
           <Card
-            className="chart-enter min-w-0"
+            className="chart-enter min-w-0 overflow-hidden"
             style={{ animationDelay: "100ms" }}
           >
             <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
@@ -202,45 +399,29 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               <V2BaseNotice stats={stats} />
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                {stats.totalColetasV2 === 0 ? (
-                  <EmptyChart message="Sem entrevistas v2 ainda." />
-                ) : barreirasData.length === 0 ? (
+              {stats.totalColetasV2 === 0 ? (
+                <ChartShell>
+                  <EmptyChart message="Sem entrevistas pelo aplicativo ainda." />
+                </ChartShell>
+              ) : barreirasData.length === 0 ? (
+                <ChartShell>
                   <EmptyChart message="Nenhuma barreira além de “Nenhuma”." />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      layout="vertical"
-                      data={barreirasData}
-                      margin={{ left: 8, right: 16, top: 8, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d6ddd8" />
-                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="nome"
-                        width={118}
-                        tick={{ fontSize: 10 }}
-                        tickFormatter={(v) => shortenLabel(String(v), 18)}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="total" name="Entrevistas" radius={[0, 8, 8, 0]}>
-                        {barreirasData.map((_, i) => (
-                          <Cell
-                            key={`bar-${i}`}
-                            fill={CHART_COLORS[i % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                </ChartShell>
+              ) : (
+                <HorizontalBars
+                  data={barreirasData}
+                  categoryKey="nome"
+                  trigger={trigger}
+                  yAxisWidth={yWidth}
+                  maxChars={yChars}
+                  unitLabel="menções"
+                />
+              )}
             </CardContent>
           </Card>
 
           <Card
-            className="chart-enter min-w-0"
+            className="chart-enter min-w-0 overflow-hidden"
             style={{ animationDelay: "140ms" }}
           >
             <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
@@ -249,46 +430,33 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
                   Apoio prioritário
                 </CardTitle>
                 <CardDescription>
-                  Demanda declarada nas entrevistas mobile v2
+                  Demanda declarada nas entrevistas pelo aplicativo
                 </CardDescription>
               </div>
               <V2BaseNotice stats={stats} />
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                {stats.totalColetasV2 === 0 ? (
-                  <EmptyChart message="Sem entrevistas v2 ainda." />
-                ) : stats.apoioPrioritarioDistribuicao.length === 0 ? (
+              {stats.totalColetasV2 === 0 ? (
+                <ChartShell>
+                  <EmptyChart message="Sem entrevistas pelo aplicativo ainda." />
+                </ChartShell>
+              ) : stats.apoioPrioritarioDistribuicao.length === 0 ? (
+                <ChartShell>
                   <EmptyChart message="Nenhum apoio prioritário preenchido." />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      layout="vertical"
-                      data={stats.apoioPrioritarioDistribuicao}
-                      margin={{ left: 8, right: 16, top: 8, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d6ddd8" />
-                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="apoio"
-                        width={118}
-                        tick={{ fontSize: 10 }}
-                        tickFormatter={(v) => shortenLabel(String(v), 18)}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="total" name="Entrevistas" radius={[0, 8, 8, 0]}>
-                        {stats.apoioPrioritarioDistribuicao.map((_, i) => (
-                          <Cell
-                            key={`apoio-${i}`}
-                            fill={CHART_COLORS[(i + 2) % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                </ChartShell>
+              ) : (
+                <HorizontalBars
+                  data={stats.apoioPrioritarioDistribuicao.map((a) => ({
+                    apoio: a.apoio,
+                    total: a.total,
+                  }))}
+                  categoryKey="apoio"
+                  trigger={trigger}
+                  yAxisWidth={yWidth}
+                  maxChars={yChars}
+                  unitLabel="entrevistas"
+                />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -299,7 +467,7 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
           Complementares
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="chart-enter min-w-0">
+          <Card className="chart-enter min-w-0 overflow-hidden">
             <CardHeader className="p-4 pb-1 sm:p-5 sm:pb-2">
               <CardTitle className="text-base sm:text-lg">
                 Renda por bairro
@@ -309,14 +477,17 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
+              <ChartShell className="chart-box chart-box-map">
                 <RendaBairroMap rendaPorBairro={stats.rendaPorBairro} />
-              </div>
+              </ChartShell>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground sm:hidden">
+                Toque em um bairro para ver renda média e número de famílias.
+              </p>
             </CardContent>
           </Card>
 
           <Card
-            className="chart-enter min-w-0"
+            className="chart-enter min-w-0 overflow-hidden"
             style={{ animationDelay: "80ms" }}
           >
             <CardHeader className="p-4 pb-1 sm:p-5 sm:pb-2">
@@ -328,39 +499,39 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats.transporteDistribuicao}
-                      dataKey="total"
-                      nameKey="meio"
-                      cx="50%"
-                      cy="42%"
-                      innerRadius={40}
-                      outerRadius={68}
-                      paddingAngle={2}
-                    >
-                      {stats.transporteDistribuicao.map((_, i) => (
-                        <Cell
-                          key={`tr-${i}`}
-                          fill={CHART_COLORS[i % CHART_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend
-                      verticalAlign="bottom"
-                      wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {stats.transporteDistribuicao.length === 0 ? (
+                <ChartShell>
+                  <EmptyChart message="Sem dados de transporte." />
+                </ChartShell>
+              ) : (
+                <>
+                  {transporteTop && transporteTopPct ? (
+                    <p className="mb-2 px-1 text-sm text-muted-foreground">
+                      Mais frequente:{" "}
+                      <span className="font-semibold text-foreground">
+                        {transporteTop.meio}
+                      </span>{" "}
+                      <span className="tabular-nums">({transporteTopPct})</span>
+                    </p>
+                  ) : null}
+                  <HorizontalBars
+                    data={stats.transporteDistribuicao.map((d) => ({
+                      meio: d.meio,
+                      total: d.total,
+                    }))}
+                    categoryKey="meio"
+                    trigger={trigger}
+                    yAxisWidth={yWidth}
+                    maxChars={yChars}
+                    unitLabel="entrevistas"
+                  />
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card
-            className="chart-enter min-w-0"
+            className="chart-enter min-w-0 overflow-hidden"
             style={{ animationDelay: "140ms" }}
           >
             <CardHeader className="p-4 pb-1 sm:p-5 sm:pb-2">
@@ -372,40 +543,23 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-2 pt-0 sm:p-5 sm:pt-2">
-              <div className="chart-box">
-                {stats.beneficioDistribuicao.length === 0 ? (
+              {stats.beneficioDistribuicao.length === 0 ? (
+                <ChartShell>
                   <EmptyChart message="Nenhuma família com benefício registrada." />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={stats.beneficioDistribuicao}
-                      margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d6ddd8" />
-                      <XAxis
-                        dataKey="beneficio"
-                        tick={{ fontSize: 10 }}
-                        interval={0}
-                        tickFormatter={(v) => shortenLabel(String(v), 12)}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        width={28}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="total" name="Famílias" radius={[8, 8, 0, 0]}>
-                        {stats.beneficioDistribuicao.map((_, i) => (
-                          <Cell
-                            key={`ben-${i}`}
-                            fill={CHART_COLORS[i % CHART_COLORS.length]}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
+                </ChartShell>
+              ) : (
+                <HorizontalBars
+                  data={stats.beneficioDistribuicao.map((b) => ({
+                    beneficio: b.beneficio,
+                    total: b.total,
+                  }))}
+                  categoryKey="beneficio"
+                  trigger={trigger}
+                  yAxisWidth={yWidth}
+                  maxChars={yChars}
+                  unitLabel="famílias"
+                />
+              )}
             </CardContent>
           </Card>
         </div>

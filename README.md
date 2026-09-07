@@ -115,17 +115,19 @@ Abra **http://localhost:3000/dashboard** (se a porta 3000 estiver ocupada, o Nex
 
 **3. Mobile**
 
+Se a API **já está em produção**, não precisa subir banco/front local — só o mobile apontando para o Render. Detalhes: [`mobile/README.md`](mobile/README.md#como-rodar).
+
 ```bash
 cd mobile
-cp .env.example .env
-# Device físico na mesma rede: EXPO_PUBLIC_API_URL=http://SEU_IP_LAN:3000
-# Emulador Android: http://10.0.2.2:3000
-# iOS Simulator: http://localhost:3000
+# .env — API do sistema (NÃO a URL do Expo / QR):
+#   produção: EXPO_PUBLIC_API_URL=https://sistemadecoleta.onrender.com
+#   local:    EXPO_PUBLIC_API_URL=http://SEU_IP_LAN:3000
+npx expo login          # obrigatório neste projeto (EAS); mesma conta no Expo Go
 npm install
-npx expo start
+npx expo start -c
 ```
 
-Primeira vez no celular (baixar Expo Go SDK 57, mesma Wi‑Fi, QR code, `.env`): passo a passo em [`mobile/README.md`](mobile/README.md#2-primeira-vez-no-celular-expo-go).
+Primeira vez (Expo Go SDK 57, login, `.env`, QR, troubleshooting): [`mobile/README.md`](mobile/README.md#como-rodar).
 
 ### Render (produção)
 
@@ -133,7 +135,7 @@ Primeira vez no celular (baixar Expo Go SDK 57, mesma Wi‑Fi, QR code, `.env`):
 2. Configure `DATABASE_URL` e `DIRECT_URL` no painel.
 3. Migrations: rode `prisma migrate deploy` apontando para o banco (CI ou one-off) **antes** do tráfego.
 4. Seed só se for ambiente novo (não rode seed destrutivo em prod com dados reais).
-5. No mobile de campo, `EXPO_PUBLIC_API_URL` = URL pública do Render (HTTPS).
+5. No mobile: `EXPO_PUBLIC_API_URL=https://sistemadecoleta.onrender.com` (HTTPS da API — **não** cole a URL `exp://` do Metro/QR).
 
 Health check: `GET /api/dashboard/stats`.
 

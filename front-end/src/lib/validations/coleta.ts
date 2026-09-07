@@ -16,6 +16,7 @@ import {
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
   TURNO_OPTIONS,
+  canonicalCode,
 } from "@/lib/opcoes-questionario";
 
 function digitsOrNull(value: unknown): string | null {
@@ -66,25 +67,41 @@ function enumFromOptions<T extends string>(
   return z.enum(options.map((o) => o.value) as [T, ...T[]]);
 }
 
-const tipoLocalidadeEnum = enumFromOptions(TIPO_LOCALIDADE_OPTIONS);
-const escolaridadeEnum = enumFromOptions(ESCOLARIDADE_OPTIONS);
-const situacaoOcupacionalEnum = enumFromOptions(SITUACAO_OCUPACIONAL_OPTIONS);
-const equipamentoEstudoEnum = enumFromOptions(EQUIPAMENTO_ESTUDO_OPTIONS);
-const disponibilidadeEquipamentoEnum = enumFromOptions(
+/** Aceita código ou rótulo legado; grava só o código canônico. Texto livre desconhecido falha. */
+function codeEnumFromOptions<T extends string>(
+  options: ReadonlyArray<{ value: T; label: string }>,
+) {
+  const enumSchema = enumFromOptions(options);
+  return z.preprocess((value) => {
+    if (value == null || value === "") return value;
+    const code = canonicalCode(options, String(value));
+    return code ?? String(value).trim();
+  }, enumSchema);
+}
+
+const tipoLocalidadeEnum = codeEnumFromOptions(TIPO_LOCALIDADE_OPTIONS);
+const escolaridadeEnum = codeEnumFromOptions(ESCOLARIDADE_OPTIONS);
+const situacaoOcupacionalEnum = codeEnumFromOptions(
+  SITUACAO_OCUPACIONAL_OPTIONS,
+);
+const equipamentoEstudoEnum = codeEnumFromOptions(EQUIPAMENTO_ESTUDO_OPTIONS);
+const disponibilidadeEquipamentoEnum = codeEnumFromOptions(
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
 );
-const localEstudoEnum = enumFromOptions(LOCAL_ESTUDO_OPTIONS);
-const acompanhamentoFamiliarEnum = enumFromOptions(
+const localEstudoEnum = codeEnumFromOptions(LOCAL_ESTUDO_OPTIONS);
+const acompanhamentoFamiliarEnum = codeEnumFromOptions(
   ACOMPANHAMENTO_FAMILIAR_OPTIONS,
 );
-const apoioPrioritarioEnum = enumFromOptions(APOIO_PRIORITARIO_OPTIONS);
-const barreiraCodigoEnum = enumFromOptions(BARREIRA_OPTIONS);
-const meioTransporteEnum = enumFromOptions(MEIO_TRANSPORTE_OPTIONS);
-const turnoEnum = enumFromOptions(TURNO_OPTIONS);
-const anoSerieEnum = enumFromOptions(ANO_SERIE_OPTIONS);
-const tipoAcessoInternetEnum = enumFromOptions(TIPO_ACESSO_INTERNET_OPTIONS);
-const beneficioSocialEnum = enumFromOptions(BENEFICIO_SOCIAL_OPTIONS);
-const parentescoEnum = enumFromOptions(PARENTESCO_OPTIONS);
+const apoioPrioritarioEnum = codeEnumFromOptions(APOIO_PRIORITARIO_OPTIONS);
+const barreiraCodigoEnum = codeEnumFromOptions(BARREIRA_OPTIONS);
+const meioTransporteEnum = codeEnumFromOptions(MEIO_TRANSPORTE_OPTIONS);
+const turnoEnum = codeEnumFromOptions(TURNO_OPTIONS);
+const anoSerieEnum = codeEnumFromOptions(ANO_SERIE_OPTIONS);
+const tipoAcessoInternetEnum = codeEnumFromOptions(
+  TIPO_ACESSO_INTERNET_OPTIONS,
+);
+const beneficioSocialEnum = codeEnumFromOptions(BENEFICIO_SOCIAL_OPTIONS);
+const parentescoEnum = codeEnumFromOptions(PARENTESCO_OPTIONS);
 
 export const coletaSchema = z
   .object({

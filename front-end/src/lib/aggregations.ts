@@ -59,34 +59,43 @@ export function round2(value: number): number {
   return Number(value.toFixed(2));
 }
 
-/** Faixas fixas de renda per capita (unidade família) — B-10. */
-export const RENDA_PER_CAPITA_FAIXAS = [
-  { id: "ate_500", label: "Até R$ 500", maxExclusive: 500.01 },
-  { id: "500_1000", label: "R$ 500–1.000", maxExclusive: 1000.01 },
-  { id: "1000_2000", label: "R$ 1.000–2.000", maxExclusive: 2000.01 },
-  { id: "2000_3000", label: "R$ 2.000–3.000", maxExclusive: 3000.01 },
-  { id: "acima_3000", label: "Acima de R$ 3.000", maxExclusive: Infinity },
+/** Salário mínimo nacional 2026 (Decreto nº 12.797/2025). */
+export const SALARIO_MINIMO = 1621;
+
+/**
+ * Faixas de renda familiar mensal em SM (ordem crescente).
+ * Cada item: renda ≤ maxSm × SM (exceto a última, aberta).
+ */
+export const RENDA_FAMILIAR_SM_FAIXAS = [
+  { id: "ate_0_5", label: "Até 0,5 SM", maxSm: 0.5 },
+  { id: "0_5_1", label: "Mais de 0,5 a 1 SM", maxSm: 1 },
+  { id: "1_2", label: "Mais de 1 a 2 SM", maxSm: 2 },
+  { id: "2_3", label: "Mais de 2 a 3 SM", maxSm: 3 },
+  { id: "3_5", label: "Mais de 3 a 5 SM", maxSm: 5 },
+  { id: "5_7", label: "Mais de 5 a 7 SM", maxSm: 7 },
+  { id: "acima_7", label: "Mais de 7 SM", maxSm: Infinity },
 ] as const;
 
-export function faixaRendaPerCapita(value: number): string {
-  for (const faixa of RENDA_PER_CAPITA_FAIXAS) {
-    if (value < faixa.maxExclusive) return faixa.label;
+export function faixaRendaFamiliarSm(rendaFamiliarMensal: number): string {
+  const emSm = rendaFamiliarMensal / SALARIO_MINIMO;
+  for (const faixa of RENDA_FAMILIAR_SM_FAIXAS) {
+    if (emSm <= faixa.maxSm) return faixa.label;
   }
-  return RENDA_PER_CAPITA_FAIXAS[RENDA_PER_CAPITA_FAIXAS.length - 1]!.label;
+  return RENDA_FAMILIAR_SM_FAIXAS[RENDA_FAMILIAR_SM_FAIXAS.length - 1]!.label;
 }
 
-/** Conta famílias por faixa, na ordem canônica (inclui faixas zeradas). */
-export function countByRendaPerCapitaFaixa(
-  values: number[],
+/** Conta famílias por faixa de SM, na ordem canônica (inclui faixas zeradas). */
+export function countByRendaFamiliarSmFaixa(
+  rendasFamiliares: number[],
 ): Array<{ faixa: string; total: number }> {
   const counts = new Map<string, number>(
-    RENDA_PER_CAPITA_FAIXAS.map((f) => [f.label, 0]),
+    RENDA_FAMILIAR_SM_FAIXAS.map((f) => [f.label, 0]),
   );
-  for (const v of values) {
-    const label = faixaRendaPerCapita(v);
+  for (const v of rendasFamiliares) {
+    const label = faixaRendaFamiliarSm(v);
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
-  return RENDA_PER_CAPITA_FAIXAS.map((f) => ({
+  return RENDA_FAMILIAR_SM_FAIXAS.map((f) => ({
     faixa: f.label,
     total: counts.get(f.label) ?? 0,
   }));

@@ -194,7 +194,14 @@ export function RendaBairroMap({
     const label = data
       ? `<strong>${nome}</strong><br/>Renda média: ${formatCurrency(data.rendaMedia)}<br/>Famílias: ${data.familias}`
       : `<strong>${nome}</strong><br/><span style="opacity:.75">Sem dados nesta coleta</span>`;
-    layer.bindTooltip(label, { sticky: true, className: "bairro-map-tooltip" });
+
+    // Hover no desktop; popup no toque/clique (mobile não tem hover).
+    layer.bindTooltip(label, {
+      sticky: true,
+      className: "bairro-map-tooltip",
+      opacity: 0.96,
+    });
+    layer.bindPopup(label, { className: "bairro-map-popup", maxWidth: 240 });
 
     layer.on({
       mouseover: (e) => {
@@ -205,6 +212,10 @@ export function RendaBairroMap({
       mouseout: (e) => {
         const target = e.target as L.Path;
         target.setStyle(styleFeature(feature));
+      },
+      click: (e) => {
+        const target = e.target as L.Layer & { openPopup?: () => void };
+        target.openPopup?.();
       },
     });
   };
@@ -233,7 +244,7 @@ export function RendaBairroMap({
       </MapContainer>
       <Legend min={min} max={max} hasData={byGeoName.size > 0} />
       {unmatched.length > 0 && (
-        <p className="absolute right-2 top-2 z-[1000] max-w-[45%] rounded bg-white/90 px-2 py-1 text-[10px] text-muted-foreground shadow-sm">
+        <p className="absolute right-2 top-2 z-[1000] max-w-[min(12rem,55%)] break-words rounded bg-white/90 px-2 py-1 text-[10px] leading-snug text-muted-foreground shadow-sm sm:max-w-[45%]">
           Sem polígono: {unmatched.join(", ")}
         </p>
       )}

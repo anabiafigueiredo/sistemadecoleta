@@ -9,7 +9,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
-    "db:export": "tsx prisma/export-sanitized.ts"
+    "db:export": "tsx prisma/export-sanitized.ts",
+    "db:normalize-categoricals": "tsx prisma/normalize-categoricals.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

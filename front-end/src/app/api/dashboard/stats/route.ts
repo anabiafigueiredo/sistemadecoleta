@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   average,
-  countByRendaPerCapitaFaixa,
+  countByRendaFamiliarSmFaixa,
   groupAverage,
   groupCount,
   median,
@@ -13,8 +13,11 @@ import {
   APOIO_PRIORITARIO_OPTIONS,
   BARREIRA_NENHUMA,
   BARREIRA_OPTIONS,
+  BENEFICIO_SOCIAL_OPTIONS,
+  MEIO_TRANSPORTE_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
-  labelOf,
+  canonicalCode,
+  canonicalLabel,
 } from "@/lib/opcoes-questionario";
 
 export const dynamic = "force-dynamic";
@@ -82,52 +85,66 @@ export async function GET() {
     });
     const comInternet = familias.filter((f) => f.possuiInternetCasa).length;
     const comBeneficio = familias.filter((f) => f.recebeBeneficioSocial).length;
+    // Unidade = entrevista (pesquisa), não aluno único ao longo do tempo.
     const comNee = pesquisas.filter(
       (p) => p.necessidadeEducacionalEspecial,
     ).length;
 
+    // Unidade = entrevista do app; exclui só a opção “Nenhuma”.
     const coletasV2ComBarreira = pesquisasV2.filter((p) =>
       p.barreiras.some((pb) => pb.barreira.codigo !== BARREIRA_NENHUMA),
     ).length;
 
-    /** Unidade família: sem internet ou tipo de acesso. */
+    /** Distribuições: agrupar por código canônico; rótulo só na resposta. */
     const internetAcessoDistribuicao = groupCount(familias, (f) => {
       if (!f.possuiInternetCasa) return "Sem internet";
-      const codigo = f.tipoAcessoInternet?.trim();
-      if (!codigo) return "Com internet (tipo não informado)";
+      const raw = f.tipoAcessoInternet?.trim();
+      if (!raw) return "Com internet (tipo não informado)";
       return (
-        labelOf(TIPO_ACESSO_INTERNET_OPTIONS, codigo) || codigo
+        canonicalCode(TIPO_ACESSO_INTERNET_OPTIONS, raw) ?? raw
       );
     })
-      .map(({ key, total }) => ({ tipo: key, total }))
+      .map(({ key, total }) => ({
+        tipo:
+          key === "Sem internet" ||
+          key === "Com internet (tipo não informado)"
+            ? key
+            : canonicalLabel(TIPO_ACESSO_INTERNET_OPTIONS, key),
+        total,
+      }))
       .sort((a, b) => b.total - a.total);
 
-    const rendaPerCapitaFaixas = countByRendaPerCapitaFaixa(rendasPerCapita);
+    const rendaFamiliarFaixas = countByRendaFamiliarSmFaixa(rendas);
 
-    /** Contagem de menções a cada barreira (exceto NENHUMA) nas entrevistas v2. */
-    const barreiraCounts = new Map<string, { nome: string; total: number }>();
+    /** Contagem de menções a cada barreira (exceto NENHUMA) — chave = código. */
+    const barreiraCounts = new Map<string, number>();
     for (const p of pesquisasV2) {
       for (const pb of p.barreiras) {
-        const codigo = pb.barreira.codigo;
+        const codigo =
+          canonicalCode(BARREIRA_OPTIONS, pb.barreira.codigo) ??
+          pb.barreira.codigo;
         if (codigo === BARREIRA_NENHUMA) continue;
-        const nome =
-          labelOf(BARREIRA_OPTIONS, codigo) || pb.barreira.nome || codigo;
-        const cur = barreiraCounts.get(codigo) ?? { nome, total: 0 };
-        cur.total += 1;
-        barreiraCounts.set(codigo, cur);
+        barreiraCounts.set(codigo, (barreiraCounts.get(codigo) ?? 0) + 1);
       }
     }
     const barreirasDistribuicao = Array.from(barreiraCounts.entries())
-      .map(([codigo, { nome, total }]) => ({ codigo, nome, total }))
+      .map(([codigo, total]) => ({
+        codigo,
+        nome: canonicalLabel(BARREIRA_OPTIONS, codigo, codigo),
+        total,
+      }))
       .sort((a, b) => b.total - a.total);
 
     const apoioPrioritarioDistribuicao = groupCount(
       pesquisasV2.filter((p) => p.apoioPrioritario != null),
       (p) =>
-        labelOf(APOIO_PRIORITARIO_OPTIONS, p.apoioPrioritario!) ||
+        canonicalCode(APOIO_PRIORITARIO_OPTIONS, p.apoioPrioritario) ??
         String(p.apoioPrioritario),
     )
-      .map(({ key, total }) => ({ apoio: key, total }))
+      .map(({ key, total }) => ({
+        apoio: canonicalLabel(APOIO_PRIORITARIO_OPTIONS, key),
+        total,
+      }))
       .sort((a, b) => b.total - a.total);
 
     const rendaPorBairro = groupAverage(
@@ -142,18 +159,29 @@ export async function GET() {
       }))
       .sort((a, b) => b.rendaMedia - a.rendaMedia);
 
-    const transporteDistribuicao = groupCount(
-      pesquisas,
-      (p) => p.meioTransporteEscola,
+    const transporteDistribuicao = groupCount(pesquisas, (p) =>
+      canonicalCode(MEIO_TRANSPORTE_OPTIONS, p.meioTransporteEscola) ??
+      p.meioTransporteEscola.trim(),
     )
-      .map(({ key, total }) => ({ meio: key, total }))
+      .map(({ key, total }) => ({
+        meio: canonicalLabel(MEIO_TRANSPORTE_OPTIONS, key),
+        total,
+      }))
       .sort((a, b) => b.total - a.total);
 
     const beneficioDistribuicao = groupCount(
       familias.filter((f) => f.recebeBeneficioSocial),
-      (f) => f.beneficioSocial?.trim() || "Não informado",
+      (f) =>
+        canonicalCode(BENEFICIO_SOCIAL_OPTIONS, f.beneficioSocial) ??
+        (f.beneficioSocial?.trim() || "NAO_INFORMADO"),
     )
-      .map(({ key, total }) => ({ beneficio: key, total }))
+      .map(({ key, total }) => ({
+        beneficio:
+          key === "NAO_INFORMADO"
+            ? "Não informado"
+            : canonicalLabel(BENEFICIO_SOCIAL_OPTIONS, key),
+        total,
+      }))
       .sort((a, b) => b.total - a.total);
 
     return ok({
@@ -182,7 +210,7 @@ export async function GET() {
         origemPadrao: m.origemPadrao,
         totalPesquisas: m._count.pesquisas,
       })),
-      rendaPerCapitaFaixas,
+      rendaFamiliarFaixas,
       internetAcessoDistribuicao,
       barreirasDistribuicao,
       apoioPrioritarioDistribuicao,

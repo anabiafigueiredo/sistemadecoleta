@@ -1,4 +1,13 @@
 import { Prisma } from "../../generated/prisma";
+import {
+  ANO_SERIE_OPTIONS,
+  BENEFICIO_SOCIAL_OPTIONS,
+  MEIO_TRANSPORTE_OPTIONS,
+  PARENTESCO_OPTIONS,
+  TIPO_ACESSO_INTERNET_OPTIONS,
+  TURNO_OPTIONS,
+  toCanonicalCode,
+} from "./canonical-codes";
 
 export type RawRow = Record<string, string>;
 
@@ -159,7 +168,9 @@ export function sanitizeRow(raw: RawRow): CleanRow {
     sexo: normalizeSexo(raw.sexo),
     cpfAluno: onlyDigits(raw.cpf_aluno),
     nomeResponsavel: titleCase(raw.nome_responsavel),
-    parentesco: titleCase(raw.parentesco_responsavel),
+    parentesco:
+      toCanonicalCode(PARENTESCO_OPTIONS, raw.parentesco_responsavel) ??
+      titleCase(raw.parentesco_responsavel),
     cpfResponsavel: onlyDigits(raw.cpf_responsavel),
     telefone: onlyDigits(raw.telefone_responsavel),
     email: parseEmail(raw.email_responsavel),
@@ -169,14 +180,25 @@ export function sanitizeRow(raw: RawRow): CleanRow {
     qtdMoradores: parseQtdMoradores(raw.qtd_moradores),
     rendaFamiliarMensal: parseCurrencyBRL(raw.renda_familiar_mensal),
     recebeBeneficioSocial: parseBoolean(raw.recebe_beneficio_social),
-    beneficioSocial: nullableText(raw.beneficio_social),
+    beneficioSocial: toCanonicalCode(
+      BENEFICIO_SOCIAL_OPTIONS,
+      nullableText(raw.beneficio_social),
+    ),
     possuiInternetCasa: parseBoolean(raw.possui_internet_casa),
-    tipoAcessoInternet: nullableText(raw.tipo_acesso_internet),
-    meioTransporteEscola: cleanText(raw.meio_transporte_escola),
+    tipoAcessoInternet: toCanonicalCode(
+      TIPO_ACESSO_INTERNET_OPTIONS,
+      nullableText(raw.tipo_acesso_internet),
+    ),
+    meioTransporteEscola:
+      toCanonicalCode(MEIO_TRANSPORTE_OPTIONS, raw.meio_transporte_escola) ??
+      cleanText(raw.meio_transporte_escola),
     tempoDeslocamentoMin: parseDisplacementMin(raw.tempo_deslocamento_min),
     frequenciaEscolarPct: parseFrequencyPct(raw.frequencia_escolar_pct),
-    anoSerie: cleanText(raw.ano_serie),
-    turno: cleanText(raw.turno),
+    anoSerie:
+      toCanonicalCode(ANO_SERIE_OPTIONS, raw.ano_serie) ??
+      cleanText(raw.ano_serie),
+    turno:
+      toCanonicalCode(TURNO_OPTIONS, raw.turno) ?? cleanText(raw.turno),
     necessidadeEducacionalEspecial: parseBoolean(
       raw.necessidade_educacional_especial,
     ),

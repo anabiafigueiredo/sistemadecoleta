@@ -14,26 +14,40 @@ export type DashboardStats = {
   totalColetas: number;
   /** Entrevistas com questionário v2 (mobile novo) — base para indicadores novos. */
   totalColetasV2: number;
-  /** Média da renda familiar mensal (unidade família). */
+  /** Média da renda familiar mensal (unidade: família). */
   rendaMediaFamiliar: number;
-  /** Mediana de renda / qtd. moradores (unidade família) — B-09. */
+  /** Mediana de (renda familiar ÷ moradores); unidade: família. */
   rendaPerCapitaMediana: number;
+  /**
+   * % de famílias com internet em casa.
+   * Numerador: famílias com possuiInternetCasa; denominador: total de famílias.
+   */
   percentualComInternet: number;
+  /**
+   * % de famílias com benefício social.
+   * Numerador: recebeBeneficioSocial; denominador: total de famílias.
+   */
   percentualComBeneficio: number;
+  /**
+   * % de entrevistas com NEE marcada.
+   * Numerador: pesquisas com necessidadeEducacionalEspecial;
+   * denominador: total de pesquisas (todas as origens/versões).
+   */
   percentualComNee: number;
   /**
-   * % de entrevistas v2 com ≥1 barreira real (exceto código NENHUMA).
-   * Denominador: totalColetasV2.
+   * % de entrevistas do app com ≥1 barreira real (exceto NENHUMA).
+   * Numerador: coletasV2ComBarreira; denominador: totalColetasV2.
    */
   percentualComBarreiraV2: number;
-  /** Contagem absoluta usada no numerador de percentualComBarreiraV2. */
+  /** Contagem absoluta do numerador de percentualComBarreiraV2. */
   coletasV2ComBarreira: number;
+  /** Média de tempoDeslocamentoMin; unidade: entrevista (pesquisa). */
   tempoMedioDeslocamentoMin: number;
   /** Há entrevistas v1 e v2 — gráficos v2 devem avisar amostra parcial. */
   amostraV2Parcial: boolean;
   momentos: MomentoColetaResumo[];
-  /** Famílias por faixa de renda per capita (B-10). */
-  rendaPerCapitaFaixas: Array<{ faixa: string; total: number }>;
+  /** Famílias por faixa de renda familiar mensal (em SM). */
+  rendaFamiliarFaixas: Array<{ faixa: string; total: number }>;
   /** Tipo de acesso à internet — unidade família (B-10). */
   internetAcessoDistribuicao: Array<{ tipo: string; total: number }>;
   /** Principais barreiras — só entrevistas v2; exclui NENHUMA (B-10). */

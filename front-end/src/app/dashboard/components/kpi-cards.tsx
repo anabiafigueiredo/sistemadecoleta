@@ -5,7 +5,6 @@ import {
   Home,
   Accessibility,
   Clock3,
-  Wifi,
   Wallet,
   OctagonAlert,
   type LucideIcon,
@@ -17,13 +16,14 @@ import type { DashboardStats } from "@/lib/types";
 type Kpi = {
   label: string;
   value: string;
-  hint: string;
+  /** Métrica complementar / contexto (não criar card extra). */
+  complement: string;
   icon: LucideIcon;
 };
 
 function KpiGrid({ items }: { items: Kpi[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
       {items.map((item, index) => {
         const Icon = item.icon;
         return (
@@ -37,7 +37,7 @@ function KpiGrid({ items }: { items: Kpi[] }) {
                 <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:text-xs sm:tracking-[0.14em]">
                   {item.label}
                 </p>
-                <CardTitle className="mt-1 truncate text-xl tabular-nums sm:mt-2 sm:text-3xl">
+                <CardTitle className="mt-1 break-words text-xl tabular-nums sm:mt-2 sm:text-3xl">
                   {item.value}
                 </CardTitle>
               </div>
@@ -45,8 +45,10 @@ function KpiGrid({ items }: { items: Kpi[] }) {
                 <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
             </CardHeader>
-            <CardContent className="hidden p-3 pt-0 sm:block sm:p-5 sm:pt-2">
-              <p className="text-sm text-muted-foreground">{item.hint}</p>
+            <CardContent className="p-3 pt-0 sm:p-5 sm:pt-2">
+              <p className="text-xs leading-snug text-muted-foreground sm:text-sm">
+                {item.complement}
+              </p>
             </CardContent>
           </Card>
         );
@@ -56,60 +58,64 @@ function KpiGrid({ items }: { items: Kpi[] }) {
 }
 
 export function KpiCards({ stats }: { stats: DashboardStats }) {
-  /** Cards alinhados ao doc da cliente (B-09). */
+  const transporteMaisFrequente =
+    stats.transporteDistribuicao[0]?.meio ?? null;
+
   const principais: Kpi[] = [
     {
       label: "Alunos",
       value: String(stats.totalAlunos),
-      hint: "Cadastros únicos (código do aluno)",
+      complement: "Cadastros únicos (código do aluno)",
       icon: GraduationCap,
     },
     {
       label: "Famílias",
       value: String(stats.totalFamilias),
-      hint: "Núcleos únicos pesquisados",
+      complement: "Núcleos únicos pesquisados",
       icon: Home,
     },
     {
-      label: "Renda per capita",
-      value: formatCurrency(stats.rendaPerCapitaMediana),
-      hint: "Mediana de renda ÷ moradores (por família)",
+      label: "Renda",
+      value: formatCurrency(stats.rendaMediaFamiliar),
+      complement: `Per capita (mediana): ${formatCurrency(stats.rendaPerCapitaMediana)}`,
       icon: Wallet,
     },
     {
-      label: "Com internet",
-      value: formatPercent(stats.percentualComInternet),
-      hint: "% de famílias com acesso em casa",
-      icon: Wifi,
+      label: "Acesso à escola",
+      value: `${stats.tempoMedioDeslocamentoMin} min`,
+      complement: transporteMaisFrequente
+        ? `Mais frequente: ${transporteMaisFrequente}`
+        : "Meio de transporte ainda sem dados",
+      icon: Clock3,
     },
   ];
 
   const contexto: Kpi[] = [
     {
-      label: "Com barreira (v2)",
+      label: "Com barreiras à frequência",
       value: formatPercent(stats.percentualComBarreiraV2),
-      hint:
+      complement:
         stats.totalColetasV2 === 0
-          ? "Ainda sem entrevistas mobile v2"
-          : `${stats.coletasV2ComBarreira} de ${stats.totalColetasV2} — base: entrevistas mobile v2`,
+          ? "Ainda sem entrevistas pelo aplicativo"
+          : `${stats.coletasV2ComBarreira} de ${stats.totalColetasV2} entrevistas do app`,
       icon: OctagonAlert,
     },
     {
-      label: "Coletas",
+      label: "Entrevistas realizadas",
       value: String(stats.totalColetas),
-      hint: `${stats.totalColetasV2} com questionário v2 (mobile)`,
+      complement: `${stats.totalColetasV2} pelo aplicativo`,
       icon: ClipboardList,
     },
     {
       label: "Com benefício",
       value: formatPercent(stats.percentualComBeneficio),
-      hint: "Famílias com auxílio social",
+      complement: "Entre todas as famílias pesquisadas",
       icon: HandHeart,
     },
     {
-      label: "Com NEE",
+      label: "Com necessidade educacional especial",
       value: formatPercent(stats.percentualComNee),
-      hint: "Alunos com necessidade especial",
+      complement: "Entre as entrevistas realizadas",
       icon: Accessibility,
     },
   ];
@@ -127,18 +133,6 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
           Contexto educacional e social
         </h2>
         <KpiGrid items={contexto} />
-        <p className="inline-flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <Clock3 className="h-3.5 w-3.5 opacity-70" />
-          Deslocamento médio:{" "}
-          <span className="font-semibold text-foreground">
-            {stats.tempoMedioDeslocamentoMin} min
-          </span>
-          <span className="mx-1 text-border">·</span>
-          Renda familiar média:{" "}
-          <span className="font-semibold text-foreground">
-            {formatCurrency(stats.rendaMediaFamiliar)}
-          </span>
-        </p>
       </section>
     </div>
   );

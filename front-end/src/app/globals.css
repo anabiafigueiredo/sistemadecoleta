@@ -78,16 +78,30 @@ body {
 .chart-box {
   width: 100%;
   min-width: 0;
-  height: 16rem;
+  height: 17rem;
+}
+
+.chart-box-auto {
+  /* altura definida inline conforme nº de categorias */
+  min-height: 12.5rem;
+}
+
+.chart-box-map {
+  height: 18rem;
 }
 
 @media (min-width: 640px) {
   .chart-box {
     height: 18rem;
   }
+
+  .chart-box-map {
+    height: 20rem;
+  }
 }
 
-.bairro-map-tooltip {
+.bairro-map-tooltip,
+.bairro-map-popup .leaflet-popup-content-wrapper {
   font-size: 12px;
   line-height: 1.35;
   padding: 6px 8px;
@@ -96,7 +110,14 @@ body {
   box-shadow: 0 4px 12px rgb(20 32 28 / 12%);
 }
 
+.bairro-map-popup .leaflet-popup-content {
+  margin: 6px 8px;
+  min-width: 0;
+}
+
 .leaflet-container {
   font-family: var(--font-body), system-ui, sans-serif;
   background: #eef3f0;
+  /* evita gesto de pan do mapa “vazar” rolagem horizontal da página */
+  touch-action: pan-x pan-y;
 }

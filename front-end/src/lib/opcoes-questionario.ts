@@ -191,10 +191,76 @@ export function toggleBarreira(
   return [...withoutNenhuma, code];
 }
 
+function normalizeOptionKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[_/+\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Resolve código ou texto legado para a opção oficial (se houver). */
+export function matchOption(
+  options: ReadonlyArray<{ value: string; label: string }>,
+  raw: string | null | undefined,
+): { value: string; label: string } | null {
+  const v = (raw ?? "").trim();
+  if (!v) return null;
+
+  const byCode = options.find((o) => o.value === v);
+  if (byCode) return byCode;
+
+  const key = normalizeOptionKey(v);
+
+  const byCodeNorm = options.find((o) => normalizeOptionKey(o.value) === key);
+  if (byCodeNorm) return byCodeNorm;
+
+  const byLabel = options.find((o) => normalizeOptionKey(o.label) === key);
+  if (byLabel) return byLabel;
+
+  // "Bolsa Família" → "Bolsa Família / Auxílio Brasil"
+  const byPrefix = options.find((o) => {
+    const lk = normalizeOptionKey(o.label);
+    if (!lk.startsWith(key)) return false;
+    if (lk.length === key.length) return true;
+    const next = lk[key.length];
+    return next === " " || next === "/";
+  });
+  if (byPrefix) return byPrefix;
+
+  return null;
+}
+
+/** Código canônico (BOLSA_FAMILIA) a partir de código ou texto legado. */
+export function canonicalCode(
+  options: ReadonlyArray<{ value: string; label: string }>,
+  raw: string | null | undefined,
+): string | null {
+  return matchOption(options, raw)?.value ?? null;
+}
+
+/**
+ * Preferir agrupar por canonicalCode e só então exibir o label.
+ * A normalização categórica do dashboard ocorre aqui (API), não nos gráficos.
+ */
+export function canonicalLabel(
+  options: ReadonlyArray<{ value: string; label: string }>,
+  raw: string | null | undefined,
+  fallback = "Não informado",
+): string {
+  const matched = matchOption(options, raw);
+  if (matched) return matched.label;
+  const v = (raw ?? "").trim();
+  return v || fallback;
+}
+
+/** Rótulo para UI; vazio → "—". Também unifica código e texto legado. */
 export function labelOf(
   options: ReadonlyArray<{ value: string; label: string }>,
   value: string | null | undefined,
 ): string {
-  if (!value) return "—";
-  return options.find((o) => o.value === value)?.label ?? value;
+  if (value == null || !String(value).trim()) return "—";
+  return canonicalLabel(options, value);
 }
