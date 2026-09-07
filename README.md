@@ -2,7 +2,7 @@
 
 Monorepo do MVP: **planilha (T1) → PostgreSQL → app mobile offline → sync → dashboard web**.
 
-Quem nunca viu o repositório deve conseguir subir o ambiente e demonstrar o fluxo com este README + o [roteiro de demonstração](docs/roteiro-demonstracao.md).
+Para ajudar: [roteiro de demonstração](docs/roteiro-demonstracao.md).
 
 ---
 
