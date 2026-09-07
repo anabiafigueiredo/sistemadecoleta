@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, Text, StyleSheet, View } from "react-native";
 
 type Option<T extends string> = { value: T; label: string };
@@ -9,6 +10,10 @@ type Props<T extends string> = {
   onToggle: (value: T) => void;
   error?: string;
   hint?: string;
+  /** Máximo de opções selecionáveis (desmarca continua permitido). */
+  max?: number;
+  /** Códigos ainda clicáveis no limite (ex.: "Nenhum", que substitui a seleção). */
+  bypassMaxValues?: readonly T[];
 };
 
 export function MultiSelectChips<T extends string>({
@@ -18,8 +23,14 @@ export function MultiSelectChips<T extends string>({
   onToggle,
   error,
   hint,
+  max,
+  bypassMaxValues,
 }: Props<T>) {
   const selected = new Set(values);
+  const bypass = new Set(bypassMaxValues ?? []);
+  const countable = values.filter((v) => !bypass.has(v)).length;
+  const atMax = max != null && countable >= max;
+  const [limitFlash, setLimitFlash] = useState(false);
 
   return (
     <View style={styles.wrap}>
@@ -28,19 +39,42 @@ export function MultiSelectChips<T extends string>({
       <View style={styles.row}>
         {options.map((opt) => {
           const active = selected.has(opt.value);
+          const blocked = atMax && !active && !bypass.has(opt.value);
           return (
             <Pressable
               key={opt.value}
-              onPress={() => onToggle(opt.value)}
-              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => {
+                if (blocked) {
+                  setLimitFlash(true);
+                  return;
+                }
+                setLimitFlash(false);
+                onToggle(opt.value);
+              }}
+              style={[
+                styles.chip,
+                active && styles.chipActive,
+                blocked && styles.chipBlocked,
+              ]}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  active && styles.chipTextActive,
+                  blocked && styles.chipTextBlocked,
+                ]}
+              >
                 {opt.label}
               </Text>
             </Pressable>
           );
         })}
       </View>
+      {limitFlash && max != null ? (
+        <Text style={styles.limitMsg}>
+          Máximo de {max} opções. Desmarque uma para escolher outra.
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -72,7 +106,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F766E",
     borderColor: "#0F766E",
   },
+  chipBlocked: {
+    opacity: 0.45,
+  },
   chipText: { color: "#475569", fontWeight: "600", fontSize: 13 },
   chipTextActive: { color: "#FFFFFF" },
+  chipTextBlocked: { color: "#94A3B8" },
+  limitMsg: { marginTop: 4, color: "#B45309", fontSize: 12 },
   error: { marginTop: 4, color: "#DC2626", fontSize: 12 },
 });

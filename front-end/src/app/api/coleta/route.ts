@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { created, fail } from "@/lib/api-response";
-import { coletaSchema, type ColetaInput } from "@/lib/validations/coleta";
+import { coletaSchema, pesquisaToDbScalars, type ColetaInput } from "@/lib/validations/coleta";
 import { QUESTIONARIO_V2 } from "@/lib/questionario";
 
 export async function POST(request: Request) {
@@ -10,11 +10,28 @@ export async function POST(request: Request) {
     const parsed = coletaSchema.safeParse(body);
 
     if (!parsed.success) {
+      const details = parsed.error.flatten();
+      const first = parsed.error.issues[0];
+      const where = first?.path?.length ? first.path.join(".") : "";
+      const hint = first?.message
+        ? where
+          ? `${where}: ${first.message}`
+          : first.message
+        : null;
+      console.error("[POST /api/coleta] VALIDATION_ERROR", {
+        hint,
+        fieldErrors: details.fieldErrors,
+        formErrors: details.formErrors,
+        issues: parsed.error.issues.slice(0, 8).map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
       return fail(
         "VALIDATION_ERROR",
-        "Dados da coleta inválidos",
+        hint ? `Dados da coleta inválidos — ${hint}` : "Dados da coleta inválidos",
         400,
-        parsed.error.flatten(),
+        details,
       );
     }
 
@@ -23,19 +40,27 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[POST /api/coleta]", error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+  if (error instanceof Error && error.message.startsWith("CODIGO_CONFLICT:")) {
       return fail(
         "CONFLICT",
-        "Conflito de unicidade (código ou CPF já existente)",
+        error.message.replace(/^CODIGO_CONFLICT:\s*/, ""),
         409,
       );
     }
 
     if (error instanceof Error && error.message.startsWith("BARREIRAS:")) {
       return fail("VALIDATION_ERROR", error.message.replace(/^BARREIRAS:\s*/, ""), 400);
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return fail(
+        "CONFLICT",
+        "Código ou CPF já cadastrado para outro registro",
+        409,
+      );
     }
 
     return fail("INTERNAL_ERROR", "Falha ao salvar coleta", 500);
@@ -111,6 +136,23 @@ async function persistColeta(tx: Tx, input: ColetaInput) {
 
   const momentoDb = await resolveMomentoColeta(tx, momento);
 
+  const existingAluno = await tx.aluno.findUnique({
+    where: { codigoAluno: aluno.codigoAluno },
+    select: {
+      id: true,
+      nome: true,
+      familia: { select: { codigoFamilia: true } },
+    },
+  });
+  if (
+    existingAluno &&
+    existingAluno.familia.codigoFamilia !== familia.codigoFamilia
+  ) {
+    throw new Error(
+      `CODIGO_CONFLICT: O código ${aluno.codigoAluno} já está vinculado à família ${existingAluno.familia.codigoFamilia}. Use o código da família correta ou outro código de aluno.`,
+    );
+  }
+
   const familiaData = {
     endereco: familia.endereco,
     bairro: familia.bairro,
@@ -162,6 +204,8 @@ async function persistColeta(tx: Tx, input: ColetaInput) {
     update: responsavelData,
   });
 
+  const dbPesquisa = pesquisaToDbScalars(pesquisa);
+
   const pesquisaScalars = {
     origem: "MOBILE" as const,
     versaoQuestionario: QUESTIONARIO_V2,
@@ -173,17 +217,7 @@ async function persistColeta(tx: Tx, input: ColetaInput) {
         : new Prisma.Decimal(pesquisa.frequenciaEscolarPct.toFixed(2)),
     anoSerie: pesquisa.anoSerie,
     turno: pesquisa.turno,
-    necessidadeEducacionalEspecial: pesquisa.necessidadeEducacionalEspecial,
-    descricaoNecessidade: pesquisa.descricaoNecessidade ?? null,
-    observacao: pesquisa.observacao ?? null,
-    equipamentoEstudo: pesquisa.equipamentoEstudo ?? null,
-    disponibilidadeEquipamento:
-      pesquisa.equipamentoEstudo === "NENHUM"
-        ? ("N_A" as const)
-        : (pesquisa.disponibilidadeEquipamento ?? null),
-    localEstudo: pesquisa.localEstudo ?? null,
-    acompanhamentoFamiliar: pesquisa.acompanhamentoFamiliar ?? null,
-    apoioPrioritario: pesquisa.apoioPrioritario ?? null,
+    ...dbPesquisa,
     sincronizadoEm: new Date(),
   };
 

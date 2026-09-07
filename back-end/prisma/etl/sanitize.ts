@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma";
 import {
   ANO_SERIE_OPTIONS,
+  BAIRRO_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
   MEIO_TRANSPORTE_OPTIONS,
   PARENTESCO_OPTIONS,
@@ -175,7 +176,8 @@ export function sanitizeRow(raw: RawRow): CleanRow {
     telefone: onlyDigits(raw.telefone_responsavel),
     email: parseEmail(raw.email_responsavel),
     endereco: cleanText(raw.endereco),
-    bairro: titleCase(raw.bairro),
+    bairro:
+      toCanonicalCode(BAIRRO_OPTIONS, raw.bairro) ?? titleCase(raw.bairro),
     comunidade: titleCase(raw.comunidade),
     qtdMoradores: parseQtdMoradores(raw.qtd_moradores),
     rendaFamiliarMensal: parseCurrencyBRL(raw.renda_familiar_mensal),

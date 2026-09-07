@@ -117,7 +117,11 @@ export default function DashboardPage() {
         <>
           <KpiCards stats={stats} />
           <DashboardCharts stats={stats} />
-          <AlunosTable refreshKey={refreshKey} />
+          <AlunosTable
+            refreshKey={refreshKey}
+            totalColetas={stats.totalColetas}
+            totalColetasV2={stats.totalColetasV2}
+          />
         </>
       ) : !error ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

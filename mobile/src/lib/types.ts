@@ -11,6 +11,7 @@ import type {
   EscolaridadeValue,
   LocalEstudoValue,
   MeioTransporteValue,
+  NecessidadeEducacionalValue,
   ParentescoValue,
   SituacaoOcupacionalValue,
   TipoAcessoInternetValue,
@@ -62,18 +63,21 @@ export type ResponsavelPayload = {
 export type PesquisaPayload = {
   meioTransporteEscola: MeioTransporteValue;
   tempoDeslocamentoMin: number;
-  /** Sempre null nas coletas mobile — dado administrativo. */
+  /** Percentual 0–100 da frequência escolar do aluno. */
   frequenciaEscolarPct?: number | null;
   anoSerie: AnoSerieValue;
   turno: TurnoValue;
   necessidadeEducacionalEspecial: boolean;
-  descricaoNecessidade?: string | null;
+  /** Códigos do catálogo NEE (até 2); null quando não tem NEE. */
+  necessidadesEducacionais?: NecessidadeEducacionalValue[] | null;
   observacao?: string | null;
-  equipamentoEstudo: EquipamentoEstudoValue;
+  /** Um ou mais equipamentos; NENHUM é exclusivo. */
+  equipamentosEstudo: EquipamentoEstudoValue[];
   disponibilidadeEquipamento: DisponibilidadeEquipamentoValue;
   localEstudo: LocalEstudoValue;
   acompanhamentoFamiliar: AcompanhamentoFamiliarValue;
-  apoioPrioritario: ApoioPrioritarioValue;
+  /** Até 2 áreas; NENHUM é exclusivo. */
+  apoiosPrioritarios: ApoioPrioritarioValue[];
 };
 
 export type ColetaPayload = {
@@ -99,7 +103,7 @@ export type ColetaLocal = {
 
 /** Estado visual do formulário (strings + flags) */
 export type ColetaFormState = {
-  momentoCodigo: "T2" | "T3";
+  momentoCodigo: "" | "T2" | "T3";
   codigoFamilia: string;
   endereco: string;
   bairro: string;
@@ -107,9 +111,11 @@ export type ColetaFormState = {
   tipoLocalidade: TipoLocalidadeValue | "";
   qtdMoradores: string;
   rendaFamiliarMensal: string;
-  recebeBeneficioSocial: boolean;
+  /** null = ainda não respondido */
+  recebeBeneficioSocial: boolean | null;
   beneficioSocial: BeneficioSocialValue | "";
-  possuiInternetCasa: boolean;
+  /** null = ainda não respondido */
+  possuiInternetCasa: boolean | null;
   tipoAcessoInternet: TipoAcessoInternetValue | "";
   codigoAluno: string;
   nomeAluno: string;
@@ -125,15 +131,17 @@ export type ColetaFormState = {
   situacaoOcupacional: SituacaoOcupacionalValue | "";
   meioTransporteEscola: MeioTransporteValue | "";
   tempoDeslocamentoMin: string;
+  frequenciaEscolarPct: string;
   anoSerie: AnoSerieValue | "";
   turno: TurnoValue | "";
-  necessidadeEducacionalEspecial: boolean;
-  descricaoNecessidade: string;
+  /** null = ainda não respondido */
+  necessidadeEducacionalEspecial: boolean | null;
+  necessidadesEducacionais: NecessidadeEducacionalValue[];
   observacao: string;
-  equipamentoEstudo: EquipamentoEstudoValue | "";
+  equipamentosEstudo: EquipamentoEstudoValue[];
   disponibilidadeEquipamento: DisponibilidadeEquipamentoValue | "";
   localEstudo: LocalEstudoValue | "";
   acompanhamentoFamiliar: AcompanhamentoFamiliarValue | "";
-  apoioPrioritario: ApoioPrioritarioValue | "";
+  apoiosPrioritarios: ApoioPrioritarioValue[];
   barreiras: BarreiraValue[];
 };

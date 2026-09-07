@@ -4,7 +4,7 @@ type Option<T extends string> = { value: T; label: string };
 
 type Props<T extends string> = {
   label: string;
-  value: T;
+  value: T | "";
   options: Option<T>[];
   onChange: (value: T) => void;
   error?: string;
@@ -36,6 +36,9 @@ export function Segmented<T extends string>({
           );
         })}
       </View>
+      {!value ? (
+        <Text style={styles.hint}>Nenhuma opção selecionada</Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -64,5 +67,6 @@ const styles = StyleSheet.create({
   },
   chipText: { color: "#475569", fontWeight: "600", fontSize: 13 },
   chipTextActive: { color: "#FFFFFF" },
+  hint: { marginTop: 4, color: "#94A3B8", fontSize: 12 },
   error: { marginTop: 4, color: "#DC2626", fontSize: 12 },
 });

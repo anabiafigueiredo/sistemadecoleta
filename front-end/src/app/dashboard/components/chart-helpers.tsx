@@ -1,8 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { TooltipContentProps } from "recharts";
 import { formatPercent } from "@/lib/utils";
+
+/** Fundo opaco — evita o gráfico “vazar” atrás do tooltip (sobretudo no toque). */
+export const CHART_TOOLTIP_WRAPPER_STYLE: CSSProperties = {
+  backgroundColor: "#ffffff",
+  opacity: 1,
+  outline: "none",
+  zIndex: 40,
+};
+
+export const CHART_TOOLTIP_CONTENT_STYLE: CSSProperties = {
+  backgroundColor: "#ffffff",
+  border: "none",
+  boxShadow: "none",
+  padding: 0,
+};
 
 /** Hover no desktop fino; clique/toque em touch ou sem hover. */
 export function useChartTooltipTrigger(): "hover" | "click" {
@@ -132,7 +147,10 @@ export function ChartTooltipContent({
   // Ex.: "Wi-Fi residencial • 18 famílias • 72,0%"
   if (category && total != null && pct) {
     return (
-      <div className="rounded-md border border-border bg-white px-2.5 py-2 text-xs shadow-md">
+      <div
+        className="rounded-md border border-border px-2.5 py-2 text-xs shadow-md"
+        style={{ backgroundColor: "#ffffff" }}
+      >
         <p className="max-w-[16rem] break-words font-semibold tabular-nums text-foreground">
           {category} • {total} {unit} • {pct}
         </p>
@@ -141,7 +159,10 @@ export function ChartTooltipContent({
   }
 
   return (
-    <div className="rounded-md border border-border bg-white px-2.5 py-2 text-xs shadow-md">
+    <div
+      className="rounded-md border border-border px-2.5 py-2 text-xs shadow-md"
+      style={{ backgroundColor: "#ffffff" }}
+    >
       {category ? (
         <p className="mb-1 max-w-[14rem] break-words font-medium text-foreground">
           {category}

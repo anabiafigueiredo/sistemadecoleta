@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -12,8 +13,23 @@ import {
 
 import { Field } from "@/components/Field";
 import { Segmented } from "@/components/Segmented";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
-import { BoolSwitch, PrimaryButton } from "@/components/BoolSwitch";
+import { PrimaryButton } from "@/components/BoolSwitch";
+import { gerarCodigoAluno, gerarCodigoFamilia, gerarCodigos } from "@/lib/codigos";
+import {
+  applyAlunoLookupToForm,
+  applyFamiliaLookupToForm,
+  buscarCadastroPorCodigo,
+} from "@/lib/cadastro-lookup";
+import {
+  listarOpcoesAlunosExistentes,
+  listarOpcoesFamiliasExistentes,
+  type CadastroSelectOption,
+} from "@/lib/cadastro-opcoes";
+import { isOnline, syncOne } from "@/lib/sync";
+import { saveColeta } from "@/lib/storage";
+import { verificarUnicidadeCodigos } from "@/lib/unicidade";
 import {
   maskCpf,
   maskCurrencyInput,
@@ -21,8 +37,6 @@ import {
   maskPhone,
   onlyDigits,
 } from "@/lib/masks";
-import { isOnline, syncOne } from "@/lib/sync";
-import { saveColeta } from "@/lib/storage";
 import {
   COLETA_WIZARD_STEPS,
   emptyForm,
@@ -32,31 +46,127 @@ import {
   type ColetaFormErrors,
   type ColetaWizardStepId,
 } from "@/lib/validation";
-import type { ColetaFormState, ColetaLocal } from "@/lib/types";
+import type { ColetaFormState, ColetaLocal, ColetaPayload } from "@/lib/types";
 import {
   ACOMPANHAMENTO_FAMILIAR_OPTIONS,
   ANO_SERIE_OPTIONS,
+  APOIO_NENHUM,
   APOIO_PRIORITARIO_OPTIONS,
+  BAIRRO_OPTIONS,
   BARREIRA_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
+  EQUIPAMENTO_NENHUM,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
+  MAX_APOIOS_PRIORITARIOS,
+  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
+  NECESSIDADE_EDUCACIONAL_OPTIONS,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
   TURNO_OPTIONS,
   labelOf,
+  labelsOf,
   toggleBarreira,
+  toggleExclusiveCode,
+  toggleMaxCodes,
 } from "@/lib/opcoes-questionario";
+
+const ETAPA_COLETA_OPTIONS = [
+  { value: "T2", label: "Coleta em campo" },
+  { value: "T3", label: "Reavaliação" },
+] as const;
+
+const ORIGEM_CODIGO_OPTIONS = [
+  { value: "novo", label: "Novo" },
+  { value: "existente", label: "Existente" },
+] as const;
+
+type OrigemCodigo = "novo" | "existente";
 
 type Props = {
   initial?: ColetaLocal | null;
   onSaved: (item: ColetaLocal) => void;
 };
+
+const SIM_NAO = [
+  { value: "SIM", label: "Sim" },
+  { value: "NAO", label: "Não" },
+] as const;
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+/** Garante que o loading fique visível mesmo se a operação for rápida. */
+async function withMinDuration<T>(
+  work: Promise<T>,
+  minMs = 450,
+): Promise<T> {
+  const [result] = await Promise.all([work, wait(minMs)]);
+  return result;
+}
+
+function alertMessagesFromErrors(errors: ColetaFormErrors): {
+  title: string;
+  message: string;
+} {
+  const entries = Object.entries(errors).filter(
+    (e): e is [string, string] => Boolean(e[1]),
+  );
+  if (entries.length === 0) {
+    return {
+      title: "Etapa incompleta",
+      message: "Complete os campos desta etapa para continuar.",
+    };
+  }
+  const [[field, first]] = entries;
+  if (field === "momentoCodigo") {
+    return {
+      title: "Etapa da coleta",
+      message:
+        first ||
+        "Escolha se esta é uma coleta em campo ou uma reavaliação para continuar.",
+    };
+  }
+  if (entries.length === 1) {
+    return { title: "Campo obrigatório", message: first };
+  }
+  return {
+    title: "Campos pendentes",
+    message: `${first}\n\nHá mais ${entries.length - 1} campo(s) nesta etapa para preencher.`,
+  };
+}
+
+function CadastroBusyBanner({ message }: { message: string }) {
+  return (
+    <View style={styles.busyBanner} accessibilityRole="progressbar">
+      <ActivityIndicator color="#0F766E" />
+      <Text style={styles.busyBannerText}>{message}</Text>
+    </View>
+  );
+}
+
+function boolToSeg(v: boolean | null): "" | "SIM" | "NAO" {
+  if (v === null) return "";
+  return v ? "SIM" : "NAO";
+}
+
+function segToBool(v: string): boolean | null {
+  if (v === "SIM") return true;
+  if (v === "NAO") return false;
+  return null;
+}
+
+function chipOpts<T extends string>(
+  options: ReadonlyArray<{ value: T; label: string }>,
+) {
+  return options.map((o) => ({ value: o.value, label: o.label }));
+}
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
   if (!value.trim()) return null;
@@ -129,11 +239,435 @@ export function ColetaForm({ initial, onSaved }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [errors, setErrors] = useState<ColetaFormErrors>({});
   const [saving, setSaving] = useState(false);
+  const [generatingCodes, setGeneratingCodes] = useState(false);
+  const [buscandoAluno, setBuscandoAluno] = useState(false);
+  const [buscandoFamilia, setBuscandoFamilia] = useState(false);
+  const [cadastroBusyMsg, setCadastroBusyMsg] = useState<string | null>(null);
+  const [opcoesAlunos, setOpcoesAlunos] = useState<CadastroSelectOption[]>([]);
+  const [opcoesFamilias, setOpcoesFamilias] = useState<CadastroSelectOption[]>(
+    [],
+  );
+  const [carregandoAlunos, setCarregandoAlunos] = useState(false);
+  const [carregandoFamilias, setCarregandoFamilias] = useState(false);
+  const [origemAluno, setOrigemAluno] = useState<OrigemCodigo>(() =>
+    initial ? "existente" : "novo",
+  );
+  const [origemFamilia, setOrigemFamilia] = useState<OrigemCodigo>(() =>
+    initial ? "existente" : "novo",
+  );
+  const isNewColeta = !initial;
 
   const step = COLETA_WIZARD_STEPS[stepIndex]!;
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === COLETA_WIZARD_STEPS.length - 1;
   const isReview = step.id === "revisao";
+
+  const gerarAlunoNovo = useCallback(async () => {
+    setGeneratingCodes(true);
+    try {
+      const codigoAluno = await gerarCodigoAluno({
+        evitar: form.codigoAluno ? [form.codigoAluno] : [],
+      });
+      setForm((prev) => ({ ...prev, codigoAluno }));
+      setErrors((e) => ({ ...e, codigoAluno: undefined }));
+    } catch {
+      Alert.alert(
+        "Não foi possível gerar",
+        "Tente de novo. Se estiver offline, o código será gerado neste aparelho.",
+      );
+    } finally {
+      setGeneratingCodes(false);
+    }
+  }, [form.codigoAluno]);
+
+  const gerarFamiliaNova = useCallback(async () => {
+    setGeneratingCodes(true);
+    try {
+      const codigoFamilia = await gerarCodigoFamilia({
+        evitar: form.codigoFamilia ? [form.codigoFamilia] : [],
+      });
+      setForm((prev) => ({ ...prev, codigoFamilia }));
+      setErrors((e) => ({ ...e, codigoFamilia: undefined }));
+    } catch {
+      Alert.alert(
+        "Não foi possível gerar",
+        "Tente de novo. Se estiver offline, o código será gerado neste aparelho.",
+      );
+    } finally {
+      setGeneratingCodes(false);
+    }
+  }, [form.codigoFamilia]);
+
+  const gerarAmbosNovos = useCallback(async () => {
+    setGeneratingCodes(true);
+    try {
+      const codes = await gerarCodigos({
+        evitarAluno: form.codigoAluno ? [form.codigoAluno] : [],
+        evitarFamilia: form.codigoFamilia ? [form.codigoFamilia] : [],
+      });
+      setForm((prev) => ({
+        ...prev,
+        codigoAluno: codes.codigoAluno,
+        codigoFamilia: codes.codigoFamilia,
+      }));
+      setErrors((e) => ({
+        ...e,
+        codigoAluno: undefined,
+        codigoFamilia: undefined,
+      }));
+    } catch {
+      Alert.alert(
+        "Não foi possível gerar",
+        "Tente de novo. Se estiver offline, os códigos serão gerados neste aparelho.",
+      );
+    } finally {
+      setGeneratingCodes(false);
+    }
+  }, [form.codigoAluno, form.codigoFamilia]);
+
+  useEffect(() => {
+    if (!isNewColeta) return;
+    if (origemAluno !== "novo" && origemFamilia !== "novo") return;
+    void (async () => {
+      if (origemAluno === "novo" && origemFamilia === "novo") {
+        if (!form.codigoAluno || !form.codigoFamilia) await gerarAmbosNovos();
+        return;
+      }
+      if (origemAluno === "novo" && !form.codigoAluno) await gerarAlunoNovo();
+      if (origemFamilia === "novo" && !form.codigoFamilia) {
+        await gerarFamiliaNova();
+      }
+    })();
+    // Só na montagem de coleta nova
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const carregarOpcoesAlunos = useCallback(async () => {
+    setCarregandoAlunos(true);
+    try {
+      setOpcoesAlunos(await listarOpcoesAlunosExistentes());
+    } finally {
+      setCarregandoAlunos(false);
+    }
+  }, []);
+
+  const carregarOpcoesFamilias = useCallback(async () => {
+    setCarregandoFamilias(true);
+    try {
+      setOpcoesFamilias(await listarOpcoesFamiliasExistentes());
+    } finally {
+      setCarregandoFamilias(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (origemAluno === "existente") void carregarOpcoesAlunos();
+  }, [origemAluno, carregarOpcoesAlunos]);
+
+  useEffect(() => {
+    if (origemFamilia === "existente") void carregarOpcoesFamilias();
+  }, [origemFamilia, carregarOpcoesFamilias]);
+
+  const cadastroOcupado =
+    Boolean(cadastroBusyMsg) ||
+    buscandoAluno ||
+    buscandoFamilia ||
+    generatingCodes;
+
+  async function onChangeOrigemAluno(next: OrigemCodigo) {
+    if (cadastroOcupado) return;
+    setOrigemAluno(next);
+    if (next === "novo") {
+      // Voltar a “novo” descarta qualquer aluno/família carregados da busca
+      setOrigemFamilia("novo");
+      setGeneratingCodes(true);
+      setCadastroBusyMsg("Limpando dados e gerando novos códigos…");
+      try {
+        await withMinDuration(
+          (async () => {
+            const codes = await gerarCodigos({
+              evitarAluno: form.codigoAluno ? [form.codigoAluno] : [],
+              evitarFamilia: form.codigoFamilia ? [form.codigoFamilia] : [],
+            });
+            setForm((prev) => ({
+              ...prev,
+              codigoAluno: codes.codigoAluno,
+              codigoFamilia: codes.codigoFamilia,
+              nomeAluno: "",
+              dataNascimento: "",
+              sexo: "",
+              cpfAluno: "",
+              nomeResponsavel: "",
+              parentesco: "",
+              cpfResponsavel: "",
+              telefone: "",
+              email: "",
+              escolaridade: "",
+              situacaoOcupacional: "",
+              endereco: "",
+              bairro: "",
+              comunidade: "",
+              tipoLocalidade: "",
+              qtdMoradores: "",
+              rendaFamiliarMensal: "",
+              recebeBeneficioSocial: null,
+              beneficioSocial: "",
+              possuiInternetCasa: null,
+              tipoAcessoInternet: "",
+            }));
+            setErrors((e) => ({
+              ...e,
+              codigoAluno: undefined,
+              codigoFamilia: undefined,
+              nomeAluno: undefined,
+              dataNascimento: undefined,
+              sexo: undefined,
+              cpfAluno: undefined,
+              nomeResponsavel: undefined,
+              parentesco: undefined,
+              cpfResponsavel: undefined,
+              telefone: undefined,
+              email: undefined,
+              escolaridade: undefined,
+              situacaoOcupacional: undefined,
+              endereco: undefined,
+              bairro: undefined,
+              comunidade: undefined,
+              tipoLocalidade: undefined,
+              qtdMoradores: undefined,
+              rendaFamiliarMensal: undefined,
+              recebeBeneficioSocial: undefined,
+              beneficioSocial: undefined,
+              possuiInternetCasa: undefined,
+              tipoAcessoInternet: undefined,
+            }));
+          })(),
+        );
+      } catch {
+        Alert.alert(
+          "Não foi possível gerar",
+          "Tente de novo. Se estiver offline, os códigos serão gerados neste aparelho.",
+        );
+      } finally {
+        setGeneratingCodes(false);
+        setCadastroBusyMsg(null);
+      }
+      return;
+    }
+    // Preparando lista: limpa pré-preenchimento de família até escolher um aluno
+    setOrigemFamilia("novo");
+    setCadastroBusyMsg("Preparando seleção de aluno existente…");
+    try {
+      await withMinDuration(
+        (async () => {
+          setForm((prev) => ({
+            ...prev,
+            codigoAluno: "",
+            nomeAluno: "",
+            dataNascimento: "",
+            sexo: "",
+            cpfAluno: "",
+            nomeResponsavel: "",
+            parentesco: "",
+            cpfResponsavel: "",
+            telefone: "",
+            email: "",
+            escolaridade: "",
+            situacaoOcupacional: "",
+            codigoFamilia: "",
+            endereco: "",
+            bairro: "",
+            comunidade: "",
+            tipoLocalidade: "",
+            qtdMoradores: "",
+            rendaFamiliarMensal: "",
+            recebeBeneficioSocial: null,
+            beneficioSocial: "",
+            possuiInternetCasa: null,
+            tipoAcessoInternet: "",
+          }));
+          setErrors((e) => ({
+            ...e,
+            codigoAluno: undefined,
+            codigoFamilia: undefined,
+            nomeAluno: undefined,
+            dataNascimento: undefined,
+            sexo: undefined,
+            cpfAluno: undefined,
+            nomeResponsavel: undefined,
+            parentesco: undefined,
+            cpfResponsavel: undefined,
+            telefone: undefined,
+            email: undefined,
+            escolaridade: undefined,
+            situacaoOcupacional: undefined,
+            endereco: undefined,
+            bairro: undefined,
+            comunidade: undefined,
+            tipoLocalidade: undefined,
+            qtdMoradores: undefined,
+            rendaFamiliarMensal: undefined,
+            recebeBeneficioSocial: undefined,
+            beneficioSocial: undefined,
+            possuiInternetCasa: undefined,
+            tipoAcessoInternet: undefined,
+          }));
+          await carregarOpcoesAlunos();
+        })(),
+      );
+    } finally {
+      setCadastroBusyMsg(null);
+    }
+  }
+
+  async function onChangeOrigemFamilia(next: OrigemCodigo) {
+    if (cadastroOcupado) return;
+    setOrigemFamilia(next);
+    if (next === "novo") {
+      setGeneratingCodes(true);
+      setCadastroBusyMsg("Limpando dados e gerando novo código da família…");
+      try {
+        await withMinDuration(
+          (async () => {
+            const codigoFamilia = await gerarCodigoFamilia({
+              evitar: form.codigoFamilia ? [form.codigoFamilia] : [],
+            });
+            setForm((prev) => ({
+              ...prev,
+              codigoFamilia,
+              endereco: "",
+              bairro: "",
+              comunidade: "",
+              tipoLocalidade: "",
+              qtdMoradores: "",
+              rendaFamiliarMensal: "",
+              recebeBeneficioSocial: null,
+              beneficioSocial: "",
+              possuiInternetCasa: null,
+              tipoAcessoInternet: "",
+            }));
+            setErrors((e) => ({
+              ...e,
+              codigoFamilia: undefined,
+              endereco: undefined,
+              bairro: undefined,
+              comunidade: undefined,
+              tipoLocalidade: undefined,
+              qtdMoradores: undefined,
+              rendaFamiliarMensal: undefined,
+              recebeBeneficioSocial: undefined,
+              beneficioSocial: undefined,
+              possuiInternetCasa: undefined,
+              tipoAcessoInternet: undefined,
+            }));
+          })(),
+        );
+      } catch {
+        Alert.alert(
+          "Não foi possível gerar",
+          "Tente de novo. Se estiver offline, o código será gerado neste aparelho.",
+        );
+      } finally {
+        setGeneratingCodes(false);
+        setCadastroBusyMsg(null);
+      }
+      return;
+    }
+    setCadastroBusyMsg("Preparando seleção de família existente…");
+    try {
+      await withMinDuration(
+        (async () => {
+          setForm((prev) => ({
+            ...prev,
+            codigoFamilia: "",
+            endereco: "",
+            bairro: "",
+            comunidade: "",
+            tipoLocalidade: "",
+            qtdMoradores: "",
+            rendaFamiliarMensal: "",
+            recebeBeneficioSocial: null,
+            beneficioSocial: "",
+            possuiInternetCasa: null,
+            tipoAcessoInternet: "",
+          }));
+          setErrors((e) => ({
+            ...e,
+            codigoFamilia: undefined,
+            endereco: undefined,
+            bairro: undefined,
+            comunidade: undefined,
+            tipoLocalidade: undefined,
+            qtdMoradores: undefined,
+            rendaFamiliarMensal: undefined,
+            recebeBeneficioSocial: undefined,
+            beneficioSocial: undefined,
+            possuiInternetCasa: undefined,
+            tipoAcessoInternet: undefined,
+          }));
+          await carregarOpcoesFamilias();
+        })(),
+      );
+    } finally {
+      setCadastroBusyMsg(null);
+    }
+  }
+
+  async function selecionarAlunoExistente(codigo: string) {
+    if (cadastroOcupado) return;
+    setBuscandoAluno(true);
+    setCadastroBusyMsg("Carregando informações do aluno…");
+    try {
+      const found = await withMinDuration(
+        buscarCadastroPorCodigo({ codigoAluno: codigo }),
+      );
+      if (!found.aluno) {
+        Alert.alert(
+          "Não encontrado",
+          `Nenhum aluno com o código ${codigo}. Atualize a lista ou escolha outro.`,
+        );
+        return;
+      }
+      setOrigemFamilia("existente");
+      setForm((prev) =>
+        applyAlunoLookupToForm(prev, {
+          aluno: found.aluno!,
+          familia: found.familia,
+        }),
+      );
+      setErrors((e) => ({
+        ...e,
+        codigoAluno: undefined,
+        codigoFamilia: undefined,
+      }));
+    } finally {
+      setBuscandoAluno(false);
+      setCadastroBusyMsg(null);
+    }
+  }
+
+  async function selecionarFamiliaExistente(codigo: string) {
+    if (cadastroOcupado) return;
+    setBuscandoFamilia(true);
+    setCadastroBusyMsg("Carregando informações da família…");
+    try {
+      const found = await withMinDuration(
+        buscarCadastroPorCodigo({ codigoFamilia: codigo }),
+      );
+      if (!found.familia) {
+        Alert.alert(
+          "Não encontrada",
+          `Nenhuma família com o código ${codigo}. Atualize a lista ou escolha outra.`,
+        );
+        return;
+      }
+      setForm((prev) => applyFamiliaLookupToForm(prev, found.familia!));
+      setErrors((e) => ({ ...e, codigoFamilia: undefined }));
+    } finally {
+      setBuscandoFamilia(false);
+      setCadastroBusyMsg(null);
+    }
+  }
 
   function set<K extends keyof ColetaFormState>(
     key: K,
@@ -141,6 +675,15 @@ export function ColetaForm({ initial, onSaved }: Props) {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  }
+
+  function onChangeMomento(v: ColetaFormState["momentoCodigo"]) {
+    set("momentoCodigo", v);
+    if (!isNewColeta) return;
+    // Reavaliação: tende a reutilizar o aluno já cadastrado
+    if (v === "T3" && origemAluno === "novo") {
+      void onChangeOrigemAluno("existente");
+    }
   }
 
   const goToStep = useCallback(
@@ -158,10 +701,8 @@ export function ColetaForm({ initial, onSaved }: Props) {
         if (!result.ok) {
           setStepIndex(i);
           setErrors(result.errors);
-          Alert.alert(
-            "Etapa incompleta",
-            "Complete esta etapa antes de avançar.",
-          );
+          const alert = alertMessagesFromErrors(result.errors);
+          Alert.alert(alert.title, alert.message);
           return;
         }
       }
@@ -177,10 +718,8 @@ export function ColetaForm({ initial, onSaved }: Props) {
       const result = validateColetaStep(form, step.id);
       if (!result.ok) {
         setErrors(result.errors);
-        Alert.alert(
-          "Campos inválidos",
-          "Corrija os campos destacados para continuar.",
-        );
+        const alert = alertMessagesFromErrors(result.errors);
+        Alert.alert(alert.title, alert.message);
         return;
       }
     }
@@ -192,6 +731,50 @@ export function ColetaForm({ initial, onSaved }: Props) {
     setErrors({});
     setStepIndex((i) => Math.max(i - 1, 0));
   }, []);
+
+  async function persistAfterChecks(payload: ColetaPayload) {
+    setSaving(true);
+    try {
+      const local = await saveColeta(payload, initial?.id);
+
+      const online = await isOnline();
+      if (online) {
+        try {
+          await syncOne(local);
+          Alert.alert("Salvo e sincronizado", "Enviado para a API com sucesso.");
+          onSaved({
+            ...local,
+            sincronizado: true,
+            lastError: null,
+          });
+          return;
+        } catch (error) {
+          const msg =
+            error instanceof Error
+              ? error.message
+              : "Sem sucesso no envio. O registro ficou na fila de sincronização.";
+          Alert.alert(
+            msg.includes("vinculado") || msg.includes("CONFLICT")
+              ? "Código em conflito"
+              : "Salvo offline",
+            msg.includes("vinculado") || msg.includes("CONFLICT")
+              ? msg.replace(/^CONFLICT:\s*/i, "")
+              : "Sem sucesso no envio. O registro ficou na fila de sincronização.",
+          );
+          onSaved(local);
+          return;
+        }
+      }
+
+      Alert.alert(
+        "Salvo localmente",
+        "Sem internet. O registro será sincronizado quando a conexão voltar.",
+      );
+      onSaved(local);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSave() {
     const result = validateColetaForm(form);
@@ -208,36 +791,39 @@ export function ColetaForm({ initial, onSaved }: Props) {
       return;
     }
 
+    const payload = result.payload;
     setSaving(true);
     try {
-      const local = await saveColeta(result.payload, initial?.id);
+      const unicidade = await verificarUnicidadeCodigos(payload, {
+        excludeLocalId: initial?.id,
+      });
 
-      const online = await isOnline();
-      if (online) {
-        try {
-          await syncOne(local);
-          Alert.alert("Salvo e sincronizado", "Enviado para a API com sucesso.");
-          onSaved({
-            ...local,
-            sincronizado: true,
-            lastError: null,
-          });
-          return;
-        } catch {
-          Alert.alert(
-            "Salvo offline",
-            "Sem sucesso no envio. O registro ficou na fila de sincronização.",
-          );
-          onSaved(local);
-          return;
-        }
+      if (!unicidade.ok) {
+        setErrors((e) => ({
+          ...e,
+          ...(unicidade.field ? { [unicidade.field]: unicidade.message } : {}),
+        }));
+        if (unicidade.field === "codigoAluno") setStepIndex(0);
+        else if (unicidade.field === "codigoFamilia") setStepIndex(2);
+        Alert.alert("Código já utilizado", unicidade.message);
+        return;
       }
 
-      Alert.alert(
-        "Salvo localmente",
-        "Sem internet. O registro será sincronizado quando a conexão voltar.",
-      );
-      onSaved(local);
+      if (unicidade.warnings.length > 0) {
+        setSaving(false);
+        Alert.alert("Código já cadastrado", unicidade.warnings.join("\n\n"), [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Continuar",
+            onPress: () => {
+              void persistAfterChecks(payload);
+            },
+          },
+        ]);
+        return;
+      }
+
+      await persistAfterChecks(payload);
     } finally {
       setSaving(false);
     }
@@ -258,39 +844,121 @@ export function ColetaForm({ initial, onSaved }: Props) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <WizardProgress stepIndex={stepIndex} onGoTo={goToStep} />
+      <View style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        pointerEvents={saving ? "none" : "auto"}
+        style={saving ? styles.formSavingDim : undefined}
       >
         <Text style={styles.stepHeading}>{step.title}</Text>
 
         {step.id === "aluno" ? (
           <>
+            <Text style={styles.stepIntro}>
+              Dados de identificação do aluno. A entrevista é feita com o
+              responsável.
+            </Text>
             <Segmented
-              label="Momento"
+              label="Etapa da coleta *"
               value={form.momentoCodigo}
-              onChange={(v) => set("momentoCodigo", v)}
-              options={[
-                { value: "T2", label: "T2 — Campo" },
-                { value: "T3", label: "T3 — Reavaliação" },
-              ]}
+              onChange={(v) =>
+                onChangeMomento(v as ColetaFormState["momentoCodigo"])
+              }
+              options={[...ETAPA_COLETA_OPTIONS]}
+              error={errors.momentoCodigo}
             />
-            <Field
+            <Text style={styles.fieldHelp}>
+              Use “Coleta em campo” na visita principal e “Reavaliação” quando
+              for retornar para acompanhar o mesmo aluno.
+            </Text>
+            <Segmented
               label="Código do aluno *"
-              value={form.codigoAluno}
-              onChangeText={(t) => set("codigoAluno", t)}
-              autoCapitalize="characters"
-              error={errors.codigoAluno}
-              placeholder="ALU-1001"
+              value={origemAluno}
+              onChange={(v) => {
+                if (cadastroOcupado) return;
+                void onChangeOrigemAluno(v as OrigemCodigo);
+              }}
+              options={[...ORIGEM_CODIGO_OPTIONS]}
             />
+            {cadastroBusyMsg ? (
+              <CadastroBusyBanner message={cadastroBusyMsg} />
+            ) : null}
+            {origemAluno === "novo" ? (
+              <>
+                <Field
+                  label="Código gerado"
+                  value={form.codigoAluno}
+                  editable={false}
+                  error={errors.codigoAluno}
+                  placeholder="Gerando…"
+                  style={styles.inputReadonly}
+                />
+                <Text style={styles.fieldHelp}>
+                  Novo aluno: o código é gerado automaticamente.
+                </Text>
+                {isNewColeta ? (
+                  <View style={{ marginBottom: 12 }}>
+                    <PrimaryButton
+                      title={
+                        generatingCodes
+                          ? "Gerando…"
+                          : "Gerar novo código do aluno"
+                      }
+                      onPress={() => void gerarAlunoNovo()}
+                      disabled={generatingCodes || saving}
+                      variant="secondary"
+                    />
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <SearchableSelect
+                  label="Selecionar aluno existente *"
+                  value={form.codigoAluno}
+                  options={opcoesAlunos}
+                  onChange={(codigo) => void selecionarAlunoExistente(codigo)}
+                  error={errors.codigoAluno}
+                  placeholder="Toque para buscar por código ou nome…"
+                  emptyMessage={
+                    carregandoAlunos
+                      ? "Carregando alunos…"
+                      : "Nenhum aluno cadastrado encontrado. Verifique a conexão ou salve uma coleta antes."
+                  }
+                  loading={carregandoAlunos || buscandoAluno}
+                  disabled={cadastroOcupado}
+                />
+                <Text style={styles.fieldHelp}>
+                  Reavaliação: escolha o aluno na lista. Os dados dele e da
+                  família serão preenchidos automaticamente.
+                </Text>
+                <View style={{ marginBottom: 12 }}>
+                  <PrimaryButton
+                    title={
+                      carregandoAlunos
+                        ? "Atualizando lista…"
+                        : "Atualizar lista de alunos"
+                    }
+                    onPress={() => void carregarOpcoesAlunos()}
+                    disabled={carregandoAlunos || saving || cadastroOcupado}
+                    variant="secondary"
+                  />
+                </View>
+              </>
+            )}
+            <View
+              pointerEvents={cadastroOcupado ? "none" : "auto"}
+              style={cadastroOcupado ? styles.formDimmed : undefined}
+            >
             <Field
-              label="Nome completo *"
+              label="Nome completo do aluno *"
               value={form.nomeAluno}
               onChangeText={(t) => set("nomeAluno", t)}
               error={errors.nomeAluno}
             />
             <Field
-              label="CPF (opcional)"
+              label="CPF do aluno (opcional)"
               value={maskCpf(form.cpfAluno)}
               onChangeText={(t) => set("cpfAluno", onlyDigits(t))}
               keyboardType="number-pad"
@@ -298,7 +966,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
               placeholder="000.000.000-00"
             />
             <Field
-              label="Data de nascimento *"
+              label="Data de nascimento do aluno *"
               value={maskDateBr(form.dataNascimento)}
               onChangeText={(t) => set("dataNascimento", maskDateBr(t))}
               keyboardType="number-pad"
@@ -307,40 +975,174 @@ export function ColetaForm({ initial, onSaved }: Props) {
               error={errors.dataNascimento}
             />
             <Segmented
-              label="Sexo (opcional)"
+              label="Sexo do aluno (opcional)"
               value={form.sexo || ""}
               onChange={(v) => set("sexo", v as ColetaFormState["sexo"])}
               options={[
-                { value: "", label: "—" },
                 { value: "F", label: "Feminino" },
                 { value: "M", label: "Masculino" },
               ]}
+            />
+            </View>
+          </>
+        ) : null}
+
+        {step.id === "responsavel" ? (
+          <>
+            <Text style={styles.stepIntro}>
+              Dados do responsável que está respondendo a entrevista.
+            </Text>
+            <Field
+              label="Nome completo do responsável entrevistado *"
+              value={form.nomeResponsavel}
+              onChangeText={(t) => set("nomeResponsavel", t)}
+              error={errors.nomeResponsavel}
+            />
+            <Segmented
+              label="Parentesco com o aluno *"
+              value={form.parentesco}
+              onChange={(v) => set("parentesco", v)}
+              options={chipOpts(PARENTESCO_OPTIONS)}
+              error={errors.parentesco}
+            />
+            <Field
+              label="CPF do responsável (opcional)"
+              value={maskCpf(form.cpfResponsavel)}
+              onChangeText={(t) => set("cpfResponsavel", onlyDigits(t))}
+              keyboardType="number-pad"
+              error={errors.cpfResponsavel}
+              placeholder="000.000.000-00"
+            />
+            <Field
+              label="Telefone *"
+              value={maskPhone(form.telefone)}
+              onChangeText={(t) => set("telefone", onlyDigits(t))}
+              keyboardType="phone-pad"
+              error={errors.telefone}
+              placeholder="(92) 93001-1001"
+            />
+            <Field
+              label="E-mail (opcional)"
+              value={form.email}
+              onChangeText={(t) => set("email", t)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.email}
+            />
+            <Segmented
+              label="Situação ocupacional *"
+              value={form.situacaoOcupacional}
+              onChange={(v) => set("situacaoOcupacional", v)}
+              options={chipOpts(SITUACAO_OCUPACIONAL_OPTIONS)}
+              error={errors.situacaoOcupacional}
             />
           </>
         ) : null}
 
         {step.id === "familia" ? (
           <>
-            <Text style={styles.section}>Residência / família</Text>
-            <Field
+            <Text style={styles.stepIntro}>
+              Dados da residência e do contexto socioeconômico da família.
+            </Text>
+            <Segmented
               label="Código da família *"
-              value={form.codigoFamilia}
-              onChangeText={(t) => set("codigoFamilia", t)}
-              autoCapitalize="characters"
-              error={errors.codigoFamilia}
-              placeholder="FAM-001"
+              value={origemFamilia}
+              onChange={(v) => {
+                if (cadastroOcupado) return;
+                void onChangeOrigemFamilia(v as OrigemCodigo);
+              }}
+              options={[
+                { value: "novo", label: "Nova" },
+                { value: "existente", label: "Existente" },
+              ]}
             />
+            {cadastroBusyMsg ? (
+              <CadastroBusyBanner message={cadastroBusyMsg} />
+            ) : null}
+            {origemFamilia === "novo" ? (
+              <>
+                <Field
+                  label="Código gerado"
+                  value={form.codigoFamilia}
+                  editable={false}
+                  error={errors.codigoFamilia}
+                  placeholder="Gerando…"
+                  style={styles.inputReadonly}
+                />
+                <Text style={styles.fieldHelp}>
+                  Família nova: o código é gerado automaticamente. Para irmão
+                  na mesma casa, use “Existente”.
+                </Text>
+                {isNewColeta ? (
+                  <View style={{ marginBottom: 12 }}>
+                    <PrimaryButton
+                      title={
+                        generatingCodes
+                          ? "Gerando…"
+                          : "Gerar novo código da família"
+                      }
+                      onPress={() => void gerarFamiliaNova()}
+                      disabled={generatingCodes || saving}
+                      variant="secondary"
+                    />
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <SearchableSelect
+                  label="Selecionar família existente *"
+                  value={form.codigoFamilia}
+                  options={opcoesFamilias}
+                  onChange={(codigo) => void selecionarFamiliaExistente(codigo)}
+                  error={errors.codigoFamilia}
+                  placeholder="Toque para buscar família…"
+                  emptyMessage={
+                    carregandoFamilias
+                      ? "Carregando famílias…"
+                      : "Nenhuma família cadastrada encontrada."
+                  }
+                  loading={carregandoFamilias || buscandoFamilia}
+                  disabled={origemAluno === "existente" || cadastroOcupado}
+                />
+                <Text style={styles.fieldHelp}>
+                  {origemAluno === "existente"
+                    ? "Vinculada ao aluno selecionado. Para trocar, escolha outro aluno."
+                    : "Irmão na mesma casa: escolha a família; o código do aluno permanece novo."}
+                </Text>
+                {origemAluno !== "existente" ? (
+                  <View style={{ marginBottom: 12 }}>
+                    <PrimaryButton
+                      title={
+                        carregandoFamilias
+                          ? "Atualizando lista…"
+                          : "Atualizar lista de famílias"
+                      }
+                      onPress={() => void carregarOpcoesFamilias()}
+                      disabled={carregandoFamilias || saving || cadastroOcupado}
+                      variant="secondary"
+                    />
+                  </View>
+                ) : null}
+              </>
+            )}
+            <View
+              pointerEvents={cadastroOcupado ? "none" : "auto"}
+              style={cadastroOcupado ? styles.formDimmed : undefined}
+            >
             <Field
               label="Endereço *"
               value={form.endereco}
               onChangeText={(t) => set("endereco", t)}
               error={errors.endereco}
             />
-            <Field
+            <SearchableSelect
               label="Bairro *"
               value={form.bairro}
-              onChangeText={(t) => set("bairro", t)}
+              onChange={(v) => set("bairro", v)}
+              options={chipOpts(BAIRRO_OPTIONS)}
               error={errors.bairro}
+              placeholder="Buscar bairro…"
             />
             <Field
               label="Comunidade *"
@@ -352,167 +1154,137 @@ export function ColetaForm({ initial, onSaved }: Props) {
               label="Tipo de localidade *"
               value={form.tipoLocalidade}
               onChange={(v) => set("tipoLocalidade", v)}
-              options={[
-                { value: "", label: "—" },
-                ...TIPO_LOCALIDADE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
+              options={chipOpts(TIPO_LOCALIDADE_OPTIONS)}
               error={errors.tipoLocalidade}
             />
             <Field
-              label="Qtd. moradores *"
+              label="Quantidade de moradores da residência *"
               value={form.qtdMoradores}
               onChangeText={(t) => set("qtdMoradores", t.replace(/\D/g, ""))}
               keyboardType="number-pad"
               error={errors.qtdMoradores}
             />
+            <Text style={styles.fieldHelp}>Incluindo o entrevistado.</Text>
             <Field
               label="Renda familiar mensal (R$) *"
               value={form.rendaFamiliarMensal}
-              onChangeText={(t) => set("rendaFamiliarMensal", maskCurrencyInput(t))}
-              keyboardType="decimal-pad"
+              onChangeText={(t) =>
+                set("rendaFamiliarMensal", maskCurrencyInput(t))
+              }
+              keyboardType="number-pad"
               error={errors.rendaFamiliarMensal}
-              placeholder="1.200,00"
+              placeholder="0,00"
             />
-            <BoolSwitch
-              label="Recebe benefício social?"
-              value={form.recebeBeneficioSocial}
+            <Text style={styles.fieldHelp}>
+              Digite só números (centavos). Ex.: 120050 → R$ 1.200,50.
+            </Text>
+            <Segmented
+              label="Recebe benefício social? *"
+              value={boolToSeg(form.recebeBeneficioSocial)}
               onChange={(v) => {
-                set("recebeBeneficioSocial", v);
-                if (!v) set("beneficioSocial", "");
+                const next = segToBool(v);
+                set("recebeBeneficioSocial", next);
+                if (!next) set("beneficioSocial", "");
               }}
+              options={[...SIM_NAO]}
+              error={errors.recebeBeneficioSocial}
             />
             {form.recebeBeneficioSocial ? (
               <Segmented
                 label="Qual benefício? *"
                 value={form.beneficioSocial}
                 onChange={(v) => set("beneficioSocial", v)}
-                options={[
-                  { value: "", label: "—" },
-                  ...BENEFICIO_SOCIAL_OPTIONS.map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  })),
-                ]}
+                options={chipOpts(BENEFICIO_SOCIAL_OPTIONS)}
                 error={errors.beneficioSocial}
               />
             ) : null}
-            <BoolSwitch
-              label="Possui internet em casa?"
-              value={form.possuiInternetCasa}
-              onChange={(v) => {
-                set("possuiInternetCasa", v);
-                if (!v) set("tipoAcessoInternet", "");
-              }}
-            />
-            {form.possuiInternetCasa ? (
-              <Segmented
-                label="Tipo de acesso *"
-                value={form.tipoAcessoInternet}
-                onChange={(v) => set("tipoAcessoInternet", v)}
-                options={[
-                  { value: "", label: "—" },
-                  ...TIPO_ACESSO_INTERNET_OPTIONS.map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  })),
-                ]}
-                error={errors.tipoAcessoInternet}
-              />
-            ) : null}
-
-            <Text style={styles.section}>Responsável</Text>
-            <Field
-              label="Nome completo *"
-              value={form.nomeResponsavel}
-              onChangeText={(t) => set("nomeResponsavel", t)}
-              error={errors.nomeResponsavel}
-            />
             <Segmented
-              label="Parentesco *"
-              value={form.parentesco}
-              onChange={(v) => set("parentesco", v)}
-              options={[
-                { value: "", label: "—" },
-                ...PARENTESCO_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.parentesco}
-            />
-            <Field
-              label="CPF"
-              value={maskCpf(form.cpfResponsavel)}
-              onChangeText={(t) => set("cpfResponsavel", onlyDigits(t))}
-              keyboardType="number-pad"
-              error={errors.cpfResponsavel}
-              placeholder="000.000.000-00"
-            />
-            <Field
-              label="Telefone"
-              value={maskPhone(form.telefone)}
-              onChangeText={(t) => set("telefone", onlyDigits(t))}
-              keyboardType="phone-pad"
-              error={errors.telefone}
-              placeholder="(92) 93001-1001"
-            />
-            <Field
-              label="E-mail"
-              value={form.email}
-              onChangeText={(t) => set("email", t)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              error={errors.email}
-            />
-            <Segmented
-              label="Escolaridade do responsável *"
+              label="Qual é o nível mais alto de escolaridade entre os adultos que moram com o aluno? *"
               value={form.escolaridade}
               onChange={(v) => set("escolaridade", v)}
-              options={[
-                { value: "", label: "—" },
-                ...ESCOLARIDADE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
+              options={chipOpts(ESCOLARIDADE_OPTIONS)}
               error={errors.escolaridade}
             />
-            <Segmented
-              label="Situação ocupacional *"
-              value={form.situacaoOcupacional}
-              onChange={(v) => set("situacaoOcupacional", v)}
-              options={[
-                { value: "", label: "—" },
-                ...SITUACAO_OCUPACIONAL_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.situacaoOcupacional}
-            />
+            </View>
           </>
         ) : null}
 
-        {step.id === "socioeconomico" ? (
+        {step.id === "escolar" ? (
           <>
+            <Text style={styles.stepIntro}>
+              As próximas perguntas são sobre a situação escolar atual do aluno
+              e sua frequência à escola.
+            </Text>
             <Segmented
-              label="Meio de transporte *"
+              label="Ano / série do aluno *"
+              value={form.anoSerie}
+              onChange={(v) => set("anoSerie", v)}
+              options={chipOpts(ANO_SERIE_OPTIONS)}
+              error={errors.anoSerie}
+            />
+            <Segmented
+              label="Turno *"
+              value={form.turno}
+              onChange={(v) => set("turno", v)}
+              options={chipOpts(TURNO_OPTIONS)}
+              error={errors.turno}
+            />
+            <Segmented
+              label="Frequência escolar do aluno *"
+              value={
+                form.frequenciaEscolarPct === "NAO_SABE"
+                  ? "NAO_SABE"
+                  : form.frequenciaEscolarPct !== ""
+                    ? "INFORMAR"
+                    : ""
+              }
+              onChange={(v) => {
+                if (v === "NAO_SABE") {
+                  set("frequenciaEscolarPct", "NAO_SABE");
+                } else {
+                  set(
+                    "frequenciaEscolarPct",
+                    form.frequenciaEscolarPct === "NAO_SABE"
+                      ? ""
+                      : form.frequenciaEscolarPct,
+                  );
+                }
+              }}
+              options={[
+                { value: "INFORMAR", label: "Informar percentual" },
+                { value: "NAO_SABE", label: "Não sabe informar" },
+              ]}
+              error={
+                form.frequenciaEscolarPct === "NAO_SABE" ||
+                form.frequenciaEscolarPct === ""
+                  ? errors.frequenciaEscolarPct
+                  : undefined
+              }
+            />
+            {form.frequenciaEscolarPct !== "NAO_SABE" ? (
+              <Field
+                label="Percentual de frequência (0 a 100) *"
+                value={form.frequenciaEscolarPct}
+                onChangeText={(t) =>
+                  set(
+                    "frequenciaEscolarPct",
+                    t.replace(/\D/g, "").slice(0, 3),
+                  )
+                }
+                keyboardType="number-pad"
+                error={errors.frequenciaEscolarPct}
+                placeholder="0 a 100"
+              />
+            ) : null}
+            <Segmented
+              label="Meio de transporte utilizado para ir à escola *"
               value={form.meioTransporteEscola}
               onChange={(v) => set("meioTransporteEscola", v)}
-              options={[
-                { value: "", label: "—" },
-                ...MEIO_TRANSPORTE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
+              options={chipOpts(MEIO_TRANSPORTE_OPTIONS)}
               error={errors.meioTransporteEscola}
             />
             <Field
-              label="Tempo de deslocamento (min) *"
+              label="Tempo médio de deslocamento do aluno até a escola (min) *"
               value={form.tempoDeslocamentoMin}
               onChangeText={(t) =>
                 set("tempoDeslocamentoMin", t.replace(/\D/g, ""))
@@ -520,154 +1292,12 @@ export function ColetaForm({ initial, onSaved }: Props) {
               keyboardType="number-pad"
               error={errors.tempoDeslocamentoMin}
             />
-            <Segmented
-              label="Ano / série *"
-              value={form.anoSerie}
-              onChange={(v) => set("anoSerie", v)}
-              options={[
-                { value: "", label: "—" },
-                ...ANO_SERIE_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.anoSerie}
-            />
-            <Segmented
-              label="Turno *"
-              value={form.turno}
-              onChange={(v) => set("turno", v)}
-              options={[
-                { value: "", label: "—" },
-                ...TURNO_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.turno}
-            />
-            <BoolSwitch
-              label="Necessidade educacional especial?"
-              value={form.necessidadeEducacionalEspecial}
-              onChange={(v) => {
-                set("necessidadeEducacionalEspecial", v);
-                if (!v) set("descricaoNecessidade", "");
-              }}
-            />
-            {form.necessidadeEducacionalEspecial ? (
-              <Field
-                label="Descrição da necessidade *"
-                value={form.descricaoNecessidade}
-                onChangeText={(t) => set("descricaoNecessidade", t)}
-                error={errors.descricaoNecessidade}
-                multiline
-              />
-            ) : null}
-            <Field
-              label="Observações"
-              value={form.observacao}
-              onChangeText={(t) => set("observacao", t)}
-              multiline
-              style={{ minHeight: 80, textAlignVertical: "top" }}
-            />
-          </>
-        ) : null}
-
-        {step.id === "educacional" ? (
-          <>
-            <Segmented
-              label="Equipamento de estudo *"
-              value={form.equipamentoEstudo}
-              onChange={(v) => {
-                setForm((prev) => ({
-                  ...prev,
-                  equipamentoEstudo: v as ColetaFormState["equipamentoEstudo"],
-                  disponibilidadeEquipamento:
-                    v === "NENHUM"
-                      ? "N_A"
-                      : prev.disponibilidadeEquipamento === "N_A"
-                        ? ""
-                        : prev.disponibilidadeEquipamento,
-                }));
-                setErrors((e) => ({
-                  ...e,
-                  equipamentoEstudo: undefined,
-                  disponibilidadeEquipamento: undefined,
-                }));
-              }}
-              options={[
-                { value: "", label: "—" },
-                ...EQUIPAMENTO_ESTUDO_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.equipamentoEstudo}
-            />
-            {form.equipamentoEstudo !== "NENHUM" ? (
-              <Segmented
-                label="Disponibilidade do equipamento *"
-                value={form.disponibilidadeEquipamento}
-                onChange={(v) => set("disponibilidadeEquipamento", v)}
-                options={[
-                  { value: "", label: "—" },
-                  ...DISPONIBILIDADE_EQUIPAMENTO_OPTIONS.filter(
-                    (o) => o.value !== "N_A",
-                  ).map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  })),
-                ]}
-                error={errors.disponibilidadeEquipamento}
-              />
-            ) : null}
-            <Segmented
-              label="Tem local adequado para estudar? *"
-              value={form.localEstudo}
-              onChange={(v) => set("localEstudo", v)}
-              options={[
-                { value: "", label: "—" },
-                ...LOCAL_ESTUDO_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.localEstudo}
-            />
-            <Segmented
-              label="Acompanhamento familiar nos estudos *"
-              value={form.acompanhamentoFamiliar}
-              onChange={(v) => set("acompanhamentoFamiliar", v)}
-              options={[
-                { value: "", label: "—" },
-                ...ACOMPANHAMENTO_FAMILIAR_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.acompanhamentoFamiliar}
-            />
-            <Segmented
-              label="Apoio prioritário *"
-              value={form.apoioPrioritario}
-              onChange={(v) => set("apoioPrioritario", v)}
-              options={[
-                { value: "", label: "—" },
-                ...APOIO_PRIORITARIO_OPTIONS.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                })),
-              ]}
-              error={errors.apoioPrioritario}
-            />
+            <Text style={styles.fieldHelp}>Informe um número inteiro (0 ou mais).</Text>
             <MultiSelectChips
-              label="Barreiras à frequência / acompanhamento *"
+              label="Hoje, quais fatores podem dificultar a frequência do aluno à escola? *"
               hint="Pode marcar várias. 'Nenhuma' exclui as demais."
               values={form.barreiras}
-              options={BARREIRA_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
+              options={chipOpts(BARREIRA_OPTIONS)}
               onToggle={(code) => {
                 setForm((prev) => ({
                   ...prev,
@@ -685,6 +1315,173 @@ export function ColetaForm({ initial, onSaved }: Props) {
           </>
         ) : null}
 
+        {step.id === "estudo" ? (
+          <>
+            <Text style={styles.stepIntro}>
+              As próximas perguntas são sobre os recursos, condições de estudo e
+              apoio disponíveis ao aluno.
+            </Text>
+            <Segmented
+              label="O aluno possui acesso à internet em casa para estudar? *"
+              value={boolToSeg(form.possuiInternetCasa)}
+              onChange={(v) => {
+                const next = segToBool(v);
+                set("possuiInternetCasa", next);
+                if (!next) set("tipoAcessoInternet", "");
+              }}
+              options={[...SIM_NAO]}
+              error={errors.possuiInternetCasa}
+            />
+            {form.possuiInternetCasa ? (
+              <Segmented
+                label="Qual é o principal tipo de acesso à internet utilizado pelo aluno? *"
+                value={form.tipoAcessoInternet}
+                onChange={(v) => set("tipoAcessoInternet", v)}
+                options={chipOpts(TIPO_ACESSO_INTERNET_OPTIONS)}
+                error={errors.tipoAcessoInternet}
+              />
+            ) : null}
+            <MultiSelectChips
+              label="Quais equipamentos o aluno tem disponíveis para estudar? *"
+              hint="Pode marcar vários. 'Nenhum' exclui as demais."
+              values={form.equipamentosEstudo}
+              options={chipOpts(EQUIPAMENTO_ESTUDO_OPTIONS)}
+              onToggle={(code) => {
+                setForm((prev) => {
+                  const next = toggleExclusiveCode(
+                    prev.equipamentosEstudo,
+                    code,
+                    EQUIPAMENTO_NENHUM,
+                  ) as ColetaFormState["equipamentosEstudo"];
+                  const soNenhum =
+                    next.length === 1 && next[0] === EQUIPAMENTO_NENHUM;
+                  return {
+                    ...prev,
+                    equipamentosEstudo: next,
+                    disponibilidadeEquipamento: soNenhum
+                      ? "N_A"
+                      : prev.disponibilidadeEquipamento === "N_A"
+                        ? ""
+                        : prev.disponibilidadeEquipamento,
+                  };
+                });
+                setErrors((e) => ({
+                  ...e,
+                  equipamentosEstudo: undefined,
+                  disponibilidadeEquipamento: undefined,
+                }));
+              }}
+              error={errors.equipamentosEstudo}
+            />
+            {!form.equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
+            form.equipamentosEstudo.length > 0 ? (
+              <Segmented
+                label="Qual é a disponibilidade desses equipamentos para o aluno estudar? *"
+                value={form.disponibilidadeEquipamento}
+                onChange={(v) => set("disponibilidadeEquipamento", v)}
+                options={chipOpts(
+                  DISPONIBILIDADE_EQUIPAMENTO_OPTIONS.filter(
+                    (o) => o.value !== "N_A",
+                  ),
+                )}
+                error={errors.disponibilidadeEquipamento}
+              />
+            ) : null}
+            <Segmented
+              label="O aluno tem em casa um local adequado para estudar? *"
+              value={form.localEstudo}
+              onChange={(v) => set("localEstudo", v)}
+              options={chipOpts(LOCAL_ESTUDO_OPTIONS)}
+              error={errors.localEstudo}
+            />
+            <Segmented
+              label="Com que frequência algum adulto acompanha o aluno nos estudos? *"
+              value={form.acompanhamentoFamiliar}
+              onChange={(v) => set("acompanhamentoFamiliar", v)}
+              options={chipOpts(ACOMPANHAMENTO_FAMILIAR_OPTIONS)}
+              error={errors.acompanhamentoFamiliar}
+            />
+            <Segmented
+              label="O aluno possui alguma necessidade educacional específica? *"
+              value={boolToSeg(form.necessidadeEducacionalEspecial)}
+              onChange={(v) => {
+                const next = segToBool(v);
+                setForm((prev) => ({
+                  ...prev,
+                  necessidadeEducacionalEspecial: next,
+                  necessidadesEducacionais: next
+                    ? prev.necessidadesEducacionais
+                    : [],
+                }));
+                setErrors((e) => ({
+                  ...e,
+                  necessidadeEducacionalEspecial: undefined,
+                  necessidadesEducacionais: undefined,
+                }));
+              }}
+              options={[...SIM_NAO]}
+              error={errors.necessidadeEducacionalEspecial}
+            />
+            {form.necessidadeEducacionalEspecial ? (
+              <MultiSelectChips
+                label="Se sim, quais necessidades o aluno possui? *"
+                hint="Selecione até 2 opções."
+                max={MAX_NECESSIDADES_EDUCACIONAIS}
+                values={form.necessidadesEducacionais}
+                options={chipOpts(NECESSIDADE_EDUCACIONAL_OPTIONS)}
+                onToggle={(code) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    necessidadesEducacionais: toggleMaxCodes(
+                      prev.necessidadesEducacionais,
+                      code,
+                      MAX_NECESSIDADES_EDUCACIONAIS,
+                    ) as ColetaFormState["necessidadesEducacionais"],
+                  }));
+                  if (errors.necessidadesEducacionais) {
+                    setErrors((e) => ({
+                      ...e,
+                      necessidadesEducacionais: undefined,
+                    }));
+                  }
+                }}
+                error={errors.necessidadesEducacionais}
+              />
+            ) : null}
+            <MultiSelectChips
+              label="Em qual área o aluno mais precisa de apoio atualmente? *"
+              hint="Selecione até 2 opções. 'Nenhum' exclui as demais."
+              max={MAX_APOIOS_PRIORITARIOS}
+              bypassMaxValues={[APOIO_NENHUM]}
+              values={form.apoiosPrioritarios}
+              options={chipOpts(APOIO_PRIORITARIO_OPTIONS)}
+              onToggle={(code) => {
+                setForm((prev) => ({
+                  ...prev,
+                  apoiosPrioritarios: toggleExclusiveCode(
+                    prev.apoiosPrioritarios,
+                    code,
+                    APOIO_NENHUM,
+                    MAX_APOIOS_PRIORITARIOS,
+                  ) as ColetaFormState["apoiosPrioritarios"],
+                }));
+                if (errors.apoiosPrioritarios) {
+                  setErrors((e) => ({ ...e, apoiosPrioritarios: undefined }));
+                }
+              }}
+              error={errors.apoiosPrioritarios}
+            />
+            <Field
+              label="Observações gerais (opcional)"
+              value={form.observacao}
+              onChangeText={(t) => set("observacao", t)}
+              error={errors.observacao}
+              multiline
+              placeholder="Registre informações relevantes da entrevista"
+            />
+          </>
+        ) : null}
+
         {isReview ? (
           <View style={styles.reviewCard}>
             <Text style={styles.reviewHint}>
@@ -692,7 +1489,10 @@ export function ColetaForm({ initial, onSaved }: Props) {
             </Text>
 
             <Text style={styles.reviewSection}>Aluno</Text>
-            <ReviewRow label="Momento" value={form.momentoCodigo} />
+            <ReviewRow
+              label="Etapa"
+              value={labelOf(ETAPA_COLETA_OPTIONS, form.momentoCodigo)}
+            />
             <ReviewRow label="Código" value={form.codigoAluno} />
             <ReviewRow label="Nome" value={form.nomeAluno} />
             <ReviewRow label="CPF" value={maskCpf(form.cpfAluno)} />
@@ -711,10 +1511,32 @@ export function ColetaForm({ initial, onSaved }: Props) {
               }
             />
 
+            <Text style={styles.reviewSection}>Responsável</Text>
+            <ReviewRow label="Nome" value={form.nomeResponsavel} />
+            <ReviewRow
+              label="Parentesco"
+              value={
+                labelOf(PARENTESCO_OPTIONS, form.parentesco) || form.parentesco
+              }
+            />
+            <ReviewRow label="CPF" value={maskCpf(form.cpfResponsavel)} />
+            <ReviewRow label="Telefone" value={maskPhone(form.telefone)} />
+            <ReviewRow label="E-mail" value={form.email} />
+            <ReviewRow
+              label="Ocupação"
+              value={
+                labelOf(SITUACAO_OCUPACIONAL_OPTIONS, form.situacaoOcupacional) ||
+                form.situacaoOcupacional
+              }
+            />
+
             <Text style={styles.reviewSection}>Família</Text>
             <ReviewRow label="Cód. família" value={form.codigoFamilia} />
             <ReviewRow label="Endereço" value={form.endereco} />
-            <ReviewRow label="Bairro" value={form.bairro} />
+            <ReviewRow
+              label="Bairro"
+              value={labelOf(BAIRRO_OPTIONS, form.bairro)}
+            />
             <ReviewRow label="Comunidade" value={form.comunidade} />
             <ReviewRow
               label="Localidade"
@@ -728,57 +1550,23 @@ export function ColetaForm({ initial, onSaved }: Props) {
             <ReviewRow
               label="Benefício"
               value={
-                form.recebeBeneficioSocial
-                  ? labelOf(BENEFICIO_SOCIAL_OPTIONS, form.beneficioSocial) ||
-                    form.beneficioSocial
-                  : "Não"
+                form.recebeBeneficioSocial === null
+                  ? ""
+                  : form.recebeBeneficioSocial
+                    ? labelOf(BENEFICIO_SOCIAL_OPTIONS, form.beneficioSocial) ||
+                      form.beneficioSocial
+                    : "Não"
               }
             />
             <ReviewRow
-              label="Internet"
-              value={
-                form.possuiInternetCasa
-                  ? labelOf(
-                      TIPO_ACESSO_INTERNET_OPTIONS,
-                      form.tipoAcessoInternet,
-                    ) || form.tipoAcessoInternet
-                  : "Não"
-              }
-            />
-            <ReviewRow label="Responsável" value={form.nomeResponsavel} />
-            <ReviewRow
-              label="Parentesco"
-              value={
-                labelOf(PARENTESCO_OPTIONS, form.parentesco) || form.parentesco
-              }
-            />
-            <ReviewRow label="CPF resp." value={maskCpf(form.cpfResponsavel)} />
-            <ReviewRow label="Telefone" value={maskPhone(form.telefone)} />
-            <ReviewRow label="E-mail" value={form.email} />
-            <ReviewRow
-              label="Escolaridade"
+              label="Escolaridade (adultos)"
               value={
                 labelOf(ESCOLARIDADE_OPTIONS, form.escolaridade) ||
                 form.escolaridade
               }
             />
-            <ReviewRow
-              label="Ocupação"
-              value={
-                labelOf(SITUACAO_OCUPACIONAL_OPTIONS, form.situacaoOcupacional) ||
-                form.situacaoOcupacional
-              }
-            />
 
-            <Text style={styles.reviewSection}>Escola</Text>
-            <ReviewRow
-              label="Transporte"
-              value={
-                labelOf(MEIO_TRANSPORTE_OPTIONS, form.meioTransporteEscola) ||
-                form.meioTransporteEscola
-              }
-            />
-            <ReviewRow label="Desloc. (min)" value={form.tempoDeslocamentoMin} />
+            <Text style={styles.reviewSection}>Situação escolar</Text>
             <ReviewRow
               label="Ano/série"
               value={labelOf(ANO_SERIE_OPTIONS, form.anoSerie) || form.anoSerie}
@@ -788,22 +1576,45 @@ export function ColetaForm({ initial, onSaved }: Props) {
               value={labelOf(TURNO_OPTIONS, form.turno) || form.turno}
             />
             <ReviewRow
-              label="NEE"
+              label="Frequência"
               value={
-                form.necessidadeEducacionalEspecial
-                  ? form.descricaoNecessidade || "Sim"
-                  : "Não"
+                form.frequenciaEscolarPct === "NAO_SABE"
+                  ? "Não sabe informar"
+                  : form.frequenciaEscolarPct
+                    ? `${form.frequenciaEscolarPct}%`
+                    : ""
               }
             />
-            <ReviewRow label="Observação" value={form.observacao} />
-
-            <Text style={styles.reviewSection}>Educacional</Text>
             <ReviewRow
-              label="Equipamento"
+              label="Transporte"
               value={
-                labelOf(EQUIPAMENTO_ESTUDO_OPTIONS, form.equipamentoEstudo) ||
-                form.equipamentoEstudo
+                labelOf(MEIO_TRANSPORTE_OPTIONS, form.meioTransporteEscola) ||
+                form.meioTransporteEscola
               }
+            />
+            <ReviewRow label="Desloc. (min)" value={form.tempoDeslocamentoMin} />
+            <ReviewRow label="Barreiras" value={barreirasLabels} />
+
+            <Text style={styles.reviewSection}>Condições de estudo</Text>
+            <ReviewRow
+              label="Internet"
+              value={
+                form.possuiInternetCasa === null
+                  ? ""
+                  : form.possuiInternetCasa
+                    ? labelOf(
+                        TIPO_ACESSO_INTERNET_OPTIONS,
+                        form.tipoAcessoInternet,
+                      ) || form.tipoAcessoInternet
+                    : "Não"
+              }
+            />
+            <ReviewRow
+              label="Equipamentos"
+              value={labelsOf(
+                EQUIPAMENTO_ESTUDO_OPTIONS,
+                form.equipamentosEstudo,
+              )}
             />
             <ReviewRow
               label="Disponibilidade"
@@ -831,13 +1642,26 @@ export function ColetaForm({ initial, onSaved }: Props) {
               }
             />
             <ReviewRow
-              label="Apoio prioritário"
+              label="NEE"
               value={
-                labelOf(APOIO_PRIORITARIO_OPTIONS, form.apoioPrioritario) ||
-                form.apoioPrioritario
+                form.necessidadeEducacionalEspecial === null
+                  ? ""
+                  : form.necessidadeEducacionalEspecial
+                    ? labelsOf(
+                        NECESSIDADE_EDUCACIONAL_OPTIONS,
+                        form.necessidadesEducacionais,
+                      ) || "Sim"
+                    : "Não"
               }
             />
-            <ReviewRow label="Barreiras" value={barreirasLabels} />
+            <ReviewRow
+              label="Apoio prioritário"
+              value={labelsOf(
+                APOIO_PRIORITARIO_OPTIONS,
+                form.apoiosPrioritarios,
+              )}
+            />
+            <ReviewRow label="Observações" value={form.observacao} />
           </View>
         ) : null}
 
@@ -860,6 +1684,7 @@ export function ColetaForm({ initial, onSaved }: Props) {
                 title={saving ? "Salvando…" : "Salvar e sincronizar"}
                 onPress={() => void handleSave()}
                 disabled={saving}
+                loading={saving}
               />
             ) : (
               <PrimaryButton
@@ -872,6 +1697,15 @@ export function ColetaForm({ initial, onSaved }: Props) {
         </View>
         <View style={{ height: 32 }} />
       </ScrollView>
+      {saving ? (
+        <View style={styles.savingOverlay} pointerEvents="auto">
+          <View style={styles.savingCard}>
+            <ActivityIndicator size="large" color="#0F766E" />
+            <Text style={styles.savingCardText}>Salvando coleta…</Text>
+          </View>
+        </View>
+      ) : null}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -932,14 +1766,75 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 10,
+    marginBottom: 6,
   },
-  section: {
-    marginTop: 8,
-    marginBottom: 10,
-    fontSize: 17,
+  stepIntro: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  fieldHelp: {
+    fontSize: 12,
+    color: "#64748B",
+    lineHeight: 17,
+    marginTop: -6,
+    marginBottom: 12,
+  },
+  busyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F0FDFA",
+    borderWidth: 1,
+    borderColor: "#99F6E4",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  busyBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F766E",
+    lineHeight: 18,
+  },
+  formDimmed: {
+    opacity: 0.45,
+  },
+  formSavingDim: {
+    opacity: 0.4,
+  },
+  savingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(15, 23, 42, 0.28)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  savingCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    alignItems: "center",
+    gap: 12,
+    minWidth: 180,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  savingCardText: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#0F766E",
+  },
+  inputReadonly: {
+    backgroundColor: "#F1F5F9",
+    color: "#334155",
   },
   reviewCard: {
     backgroundColor: "#F8FAFC",

@@ -17,6 +17,7 @@ import {
   ACOMPANHAMENTO_FAMILIAR_OPTIONS,
   ANO_SERIE_OPTIONS,
   APOIO_PRIORITARIO_OPTIONS,
+  BAIRRO_OPTIONS,
   BARREIRA_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
@@ -24,12 +25,14 @@ import {
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
   MEIO_TRANSPORTE_OPTIONS,
+  NECESSIDADE_EDUCACIONAL_OPTIONS,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
   TURNO_OPTIONS,
   labelOf,
+  labelsOf,
 } from "@/lib/opcoes-questionario";
 
 export default function DetalheColetaScreen() {
@@ -111,7 +114,10 @@ export default function DetalheColetaScreen() {
       <Block title="Família">
         <Line label="Código" value={familia.codigoFamilia} />
         <Line label="Endereço" value={familia.endereco} />
-        <Line label="Bairro" value={familia.bairro} />
+        <Line
+          label="Bairro"
+          value={labelOf(BAIRRO_OPTIONS, familia.bairro)}
+        />
         <Line label="Comunidade" value={familia.comunidade} />
         <Line
           label="Localidade"
@@ -175,7 +181,7 @@ export default function DetalheColetaScreen() {
           label="Frequência"
           value={
             pesquisa.frequenciaEscolarPct == null
-              ? "—"
+              ? "Não sabe informar"
               : `${pesquisa.frequenciaEscolarPct}%`
           }
         />
@@ -188,14 +194,20 @@ export default function DetalheColetaScreen() {
           label="NEE"
           value={
             pesquisa.necessidadeEducacionalEspecial
-              ? (pesquisa.descricaoNecessidade ?? "Sim")
+              ? labelsOf(
+                  NECESSIDADE_EDUCACIONAL_OPTIONS,
+                  pesquisa.necessidadesEducacionais ?? [],
+                ) || "Sim"
               : "Não"
           }
         />
         <Line label="Obs." value={pesquisa.observacao ?? "—"} />
         <Line
-          label="Equipamento"
-          value={labelOf(EQUIPAMENTO_ESTUDO_OPTIONS, pesquisa.equipamentoEstudo)}
+          label="Equipamentos"
+          value={labelsOf(
+            EQUIPAMENTO_ESTUDO_OPTIONS,
+            pesquisa.equipamentosEstudo ?? [],
+          )}
         />
         <Line
           label="Disponib."
@@ -217,7 +229,10 @@ export default function DetalheColetaScreen() {
         />
         <Line
           label="Apoio"
-          value={labelOf(APOIO_PRIORITARIO_OPTIONS, pesquisa.apoioPrioritario)}
+          value={labelsOf(
+            APOIO_PRIORITARIO_OPTIONS,
+            pesquisa.apoiosPrioritarios ?? [],
+          )}
         />
       </Block>
 

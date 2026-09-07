@@ -1,7 +1,13 @@
 /**
  * Normaliza nomes de bairro para matching entre API e GeoJSON.
  * Aliases cobrem variações curtas vs. oficiais (ex.: São José → São José Operário).
+ * Códigos canônicos (PETROPOLIS) resolvem via BAIRROS_MANAUS.geoNome.
  */
+
+import {
+  BAIRROS_MANAUS,
+  BAIRROS_SEM_MAPA,
+} from "@/lib/opcoes-questionario";
 
 const ALIASES: Record<string, string> = {
   "sao jose": "sao jose operario",
@@ -32,18 +38,30 @@ export function canonicalBairroKey(apiName: string): string {
 
 /**
  * Encontra a feature GeoJSON cujo nome casa com o bairro da API.
- * Usa igualdade canônica e, se necessário, contains (ex.: "São José" ⊂ "São José Operário").
+ * Aceita código canônico (PETROPOLIS), rótulo ou texto legado.
+ * NAO_SABE / OUTRO → null (sem geocoding).
  */
 export function matchGeoBairroName(
   apiName: string,
   geoNames: string[],
 ): string | null {
-  const key = canonicalBairroKey(apiName);
+  const raw = apiName.trim();
+  if (!raw) return null;
+  if (BAIRROS_SEM_MAPA.has(raw.toUpperCase())) return null;
+
   const normalizedGeo = geoNames.map((g) => ({
     raw: g,
     key: normalizeBairroName(g),
   }));
 
+  const byCode = BAIRROS_MANAUS.find((b) => b.value === raw.toUpperCase());
+  if (byCode) {
+    const geoKey = normalizeBairroName(byCode.geoNome);
+    const hit = normalizedGeo.find((g) => g.key === geoKey);
+    if (hit) return hit.raw;
+  }
+
+  const key = canonicalBairroKey(raw);
   const exact = normalizedGeo.find((g) => g.key === key);
   if (exact) return exact.raw;
 

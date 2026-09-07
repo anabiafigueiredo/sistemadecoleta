@@ -28,6 +28,8 @@ import { formatPercent } from "@/lib/utils";
 import type { DashboardStats } from "@/lib/types";
 import {
   ChartTooltipContent,
+  CHART_TOOLTIP_CONTENT_STYLE,
+  CHART_TOOLTIP_WRAPPER_STYLE,
   WrappedYTick,
   horizontalChartHeight,
   useChartTooltipTrigger,
@@ -161,6 +163,8 @@ function PercentPie({
         </Pie>
         <Tooltip
           trigger={trigger}
+          wrapperStyle={CHART_TOOLTIP_WRAPPER_STYLE}
+          contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
           content={(props) => <ChartTooltipContent {...props} />}
         />
         <Legend
@@ -253,6 +257,8 @@ function HorizontalBars({
           </YAxis>
           <Tooltip
             trigger={trigger}
+            wrapperStyle={CHART_TOOLTIP_WRAPPER_STYLE}
+            contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
             content={(props) => <ChartTooltipContent {...props} />}
           />
           <Bar
@@ -390,10 +396,10 @@ export function DashboardCharts({ stats }: { stats: DashboardStats }) {
             <CardHeader className="space-y-2 p-4 pb-1 sm:p-5 sm:pb-2">
               <div>
                 <CardTitle className="text-base sm:text-lg">
-                  Principais barreiras
+                  Barreiras à frequência escolar
                 </CardTitle>
                 <CardDescription>
-                  Menções nas entrevistas (exceto “Nenhuma”)
+                  Quais barreiras mais foram apontadas (exceto “Nenhuma”)
                 </CardDescription>
               </div>
               <V2BaseNotice stats={stats} />

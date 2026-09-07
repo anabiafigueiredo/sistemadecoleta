@@ -107,7 +107,15 @@ body {
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid var(--border);
+  background: #ffffff;
+  background-color: #ffffff;
+  opacity: 1;
   box-shadow: 0 4px 12px rgb(20 32 28 / 12%);
+}
+
+.bairro-map-tooltip.leaflet-tooltip {
+  background-color: #ffffff;
+  opacity: 1 !important;
 }
 
 .bairro-map-popup .leaflet-popup-content {

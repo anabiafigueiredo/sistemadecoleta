@@ -58,14 +58,19 @@ export function cpfErrorMessage(value: string): string | null {
   return null;
 }
 
-/** Moeda BRL enquanto digita. */
+/**
+ * Moeda BRL por centavos: digita só dígitos.
+ * Ex.: 120050 → "1.200,50"
+ */
 export function maskCurrencyInput(value: string): string {
-  const cleaned = value.replace(/[^\d,]/g, "");
-  const parts = cleaned.split(",");
-  const intPart = parts[0]?.replace(/\D/g, "") ?? "";
-  const decPart = parts[1]?.replace(/\D/g, "").slice(0, 2);
-  if (parts.length > 1) return `${intPart},${decPart ?? ""}`;
-  return intPart;
+  const digits = onlyDigits(value).slice(0, 12);
+  if (!digits) return "";
+  const cents = Number(digits);
+  if (!Number.isFinite(cents)) return "";
+  return (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function parseCurrencyToNumber(value: string): number {
@@ -79,4 +84,37 @@ export function formatCurrencyDisplay(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** FAM-001 — só dígitos; prefixo aplicado automaticamente. */
+export function maskCodigoFamilia(value: string): string {
+  const d = onlyDigits(value).slice(0, 6);
+  return d ? `FAM-${d}` : "";
+}
+
+/** ALU-1001 — só dígitos; prefixo aplicado automaticamente. */
+export function maskCodigoAluno(value: string): string {
+  const d = onlyDigits(value).slice(0, 8);
+  return d ? `ALU-${d}` : "";
+}
+
+export const CODIGO_FAMILIA_REGEX = /^FAM-\d{3,6}$/;
+export const CODIGO_ALUNO_REGEX = /^ALU-\d{3,8}$/;
+
+export function codigoFamiliaErrorMessage(value: string): string | null {
+  const v = value.trim().toUpperCase();
+  if (!v) return "Código da família é obrigatório";
+  if (!CODIGO_FAMILIA_REGEX.test(v)) {
+    return "Use o formato FAM-001 (mín. 3 dígitos)";
+  }
+  return null;
+}
+
+export function codigoAlunoErrorMessage(value: string): string | null {
+  const v = value.trim().toUpperCase();
+  if (!v) return "Código do aluno é obrigatório";
+  if (!CODIGO_ALUNO_REGEX.test(v)) {
+    return "Use o formato ALU-1001 (mín. 3 dígitos)";
+  }
+  return null;
 }

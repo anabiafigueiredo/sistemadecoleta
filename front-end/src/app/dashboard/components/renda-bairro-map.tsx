@@ -14,6 +14,7 @@ import {
   matchGeoBairroName,
   normalizeBairroName,
 } from "@/lib/bairro-aliases";
+import { BAIRRO_OPTIONS, labelOf } from "@/lib/opcoes-questionario";
 import { formatCurrency } from "@/lib/utils";
 import type { DashboardStats } from "@/lib/types";
 
@@ -77,7 +78,7 @@ function Legend({
 }) {
   if (!hasData) return null;
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] rounded-md border border-border bg-white/95 px-2.5 py-2 text-[10px] shadow-sm sm:text-[11px]">
+    <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] rounded-md border border-border bg-white px-2.5 py-2 text-[10px] shadow-sm sm:text-[11px]">
       <p className="mb-1 font-medium text-foreground">Renda média</p>
       <div
         className="mb-1 h-2 w-28 rounded-sm sm:w-36"
@@ -199,7 +200,7 @@ export function RendaBairroMap({
     layer.bindTooltip(label, {
       sticky: true,
       className: "bairro-map-tooltip",
-      opacity: 0.96,
+      opacity: 1,
     });
     layer.bindPopup(label, { className: "bairro-map-popup", maxWidth: 240 });
 
@@ -244,8 +245,9 @@ export function RendaBairroMap({
       </MapContainer>
       <Legend min={min} max={max} hasData={byGeoName.size > 0} />
       {unmatched.length > 0 && (
-        <p className="absolute right-2 top-2 z-[1000] max-w-[min(12rem,55%)] break-words rounded bg-white/90 px-2 py-1 text-[10px] leading-snug text-muted-foreground shadow-sm sm:max-w-[45%]">
-          Sem polígono: {unmatched.join(", ")}
+        <p className="absolute right-2 top-2 z-[1000] max-w-[min(12rem,55%)] break-words rounded bg-white px-2 py-1 text-[10px] leading-snug text-muted-foreground shadow-sm sm:max-w-[45%]">
+          Sem polígono:{" "}
+          {unmatched.map((b) => labelOf(BAIRRO_OPTIONS, b)).join(", ")}
         </p>
       )}
     </div>

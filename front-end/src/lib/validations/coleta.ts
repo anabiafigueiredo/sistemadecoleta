@@ -2,21 +2,29 @@ import { z } from "zod";
 import {
   ACOMPANHAMENTO_FAMILIAR_OPTIONS,
   ANO_SERIE_OPTIONS,
+  APOIO_NENHUM,
   APOIO_PRIORITARIO_OPTIONS,
+  BAIRRO_OPTIONS,
   BARREIRA_NENHUMA,
   BARREIRA_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
+  EQUIPAMENTO_NENHUM,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
+  MAX_APOIOS_PRIORITARIOS,
+  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
+  NECESSIDADE_EDUCACIONAL_OPTIONS,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   TIPO_LOCALIDADE_OPTIONS,
   TURNO_OPTIONS,
   canonicalCode,
+  joinCodes,
+  splitCodes,
 } from "@/lib/opcoes-questionario";
 
 function digitsOrNull(value: unknown): string | null {
@@ -103,6 +111,25 @@ const tipoAcessoInternetEnum = codeEnumFromOptions(
 const beneficioSocialEnum = codeEnumFromOptions(BENEFICIO_SOCIAL_OPTIONS);
 const parentescoEnum = codeEnumFromOptions(PARENTESCO_OPTIONS);
 
+/** Aceita array, string CSV ou valor único legado → array de códigos. */
+function codesArrayFromOptions<T extends string>(
+  options: ReadonlyArray<{ value: T; label: string }>,
+) {
+  const item = codeEnumFromOptions(options);
+  return z.preprocess((value) => {
+    if (value == null || value === "") return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string") return splitCodes(value);
+    return value;
+  }, z.array(item));
+}
+
+const equipamentosEstudoArray = codesArrayFromOptions(EQUIPAMENTO_ESTUDO_OPTIONS);
+const apoiosPrioritariosArray = codesArrayFromOptions(APOIO_PRIORITARIO_OPTIONS);
+const necessidadesEducacionaisArray = codesArrayFromOptions(
+  NECESSIDADE_EDUCACIONAL_OPTIONS,
+);
+
 export const coletaSchema = z
   .object({
     /** Ciclo de monitoramento. Mobile tipicamente envia T2/T3. Default: T2 */
@@ -119,9 +146,13 @@ export const coletaSchema = z
       .optional()
       .default({ codigo: "T2" }),
     familia: z.object({
-      codigoFamilia: z.string().trim().min(1, "codigoFamilia é obrigatório"),
+      codigoFamilia: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .min(1, "codigoFamilia é obrigatório"),
       endereco: z.string().trim().min(1),
-      bairro: z.string().trim().min(1),
+      bairro: codeEnumFromOptions(BAIRRO_OPTIONS),
       comunidade: z.string().trim().min(1),
       /** Obrigatório no mobile v2; null/omitido na importação v1. */
       tipoLocalidade: tipoLocalidadeEnum.nullable().optional(),
@@ -133,7 +164,11 @@ export const coletaSchema = z
       tipoAcessoInternet: tipoAcessoInternetEnum.nullable().optional(),
     }),
     aluno: z.object({
-      codigoAluno: z.string().trim().min(1, "codigoAluno é obrigatório"),
+      codigoAluno: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .min(1, "codigoAluno é obrigatório"),
       nome: z.string().trim().min(1),
       dataNascimento: z.coerce.date().nullable().optional(),
       sexo: z
@@ -163,29 +198,85 @@ export const coletaSchema = z
       escolaridade: escolaridadeEnum.nullable().optional(),
       situacaoOcupacional: situacaoOcupacionalEnum.nullable().optional(),
     }),
-    pesquisa: z.object({
-      meioTransporteEscola: meioTransporteEnum,
-      tempoDeslocamentoMin: z.coerce.number().int().min(0),
-      /** Administrativo; omitido/null nas coletas mobile (v2). */
-      frequenciaEscolarPct: z.coerce
-        .number()
-        .min(0)
-        .max(100)
-        .nullable()
-        .optional(),
-      anoSerie: anoSerieEnum,
-      turno: turnoEnum,
-      necessidadeEducacionalEspecial: z.boolean(),
-      descricaoNecessidade: z.string().trim().nullable().optional(),
-      observacao: z.string().trim().nullable().optional(),
-      /** Bloco D (v2); null/omitido na importação v1. */
-      equipamentoEstudo: equipamentoEstudoEnum.nullable().optional(),
-      disponibilidadeEquipamento:
-        disponibilidadeEquipamentoEnum.nullable().optional(),
-      localEstudo: localEstudoEnum.nullable().optional(),
-      acompanhamentoFamiliar: acompanhamentoFamiliarEnum.nullable().optional(),
-      apoioPrioritario: apoioPrioritarioEnum.nullable().optional(),
-    }),
+    pesquisa: z
+      .object({
+        meioTransporteEscola: meioTransporteEnum,
+        tempoDeslocamentoMin: z.coerce.number().int().min(0),
+        /** Percentual 0–100; preenchido nas coletas mobile v2. */
+        frequenciaEscolarPct: z.coerce
+          .number()
+          .min(0)
+          .max(100)
+          .nullable()
+          .optional(),
+        anoSerie: anoSerieEnum,
+        turno: turnoEnum,
+        necessidadeEducacionalEspecial: z.boolean(),
+        /** Códigos NEE (até 2). Aceita também descricaoNecessidade CSV legada. */
+        necessidadesEducacionais: necessidadesEducacionaisArray.optional(),
+        descricaoNecessidade: z.string().trim().nullable().optional(),
+        observacao: z.string().trim().nullable().optional(),
+        /** Arrays v2; campos singulares legados ainda aceitos. */
+        equipamentosEstudo: equipamentosEstudoArray.optional(),
+        equipamentoEstudo: z.union([
+          equipamentosEstudoArray,
+          equipamentoEstudoEnum,
+        ]).optional(),
+        disponibilidadeEquipamento:
+          disponibilidadeEquipamentoEnum.nullable().optional(),
+        localEstudo: localEstudoEnum.nullable().optional(),
+        acompanhamentoFamiliar: acompanhamentoFamiliarEnum.nullable().optional(),
+        apoiosPrioritarios: apoiosPrioritariosArray.optional(),
+        apoioPrioritario: z.union([
+          apoiosPrioritariosArray,
+          apoioPrioritarioEnum,
+        ]).optional(),
+      })
+      .transform((p) => {
+        const fromEquipLegacy = Array.isArray(p.equipamentoEstudo)
+          ? p.equipamentoEstudo
+          : p.equipamentoEstudo
+            ? [p.equipamentoEstudo]
+            : [];
+        const equipamentosEstudo =
+          p.equipamentosEstudo && p.equipamentosEstudo.length > 0
+            ? p.equipamentosEstudo
+            : fromEquipLegacy;
+
+        const fromApoioLegacy = Array.isArray(p.apoioPrioritario)
+          ? p.apoioPrioritario
+          : p.apoioPrioritario
+            ? [p.apoioPrioritario]
+            : [];
+        const apoiosPrioritarios =
+          p.apoiosPrioritarios && p.apoiosPrioritarios.length > 0
+            ? p.apoiosPrioritarios
+            : fromApoioLegacy;
+
+        const fromNeeText = splitCodes(p.descricaoNecessidade ?? undefined)
+          .map((c) => canonicalCode(NECESSIDADE_EDUCACIONAL_OPTIONS, c) ?? c)
+          .filter(Boolean);
+        const necessidadesEducacionais =
+          p.necessidadesEducacionais && p.necessidadesEducacionais.length > 0
+            ? p.necessidadesEducacionais
+            : fromNeeText;
+
+        return {
+          meioTransporteEscola: p.meioTransporteEscola,
+          tempoDeslocamentoMin: p.tempoDeslocamentoMin,
+          frequenciaEscolarPct: p.frequenciaEscolarPct,
+          anoSerie: p.anoSerie,
+          turno: p.turno,
+          necessidadeEducacionalEspecial: p.necessidadeEducacionalEspecial,
+          necessidadesEducacionais,
+          observacao: p.observacao ?? null,
+          equipamentosEstudo,
+          disponibilidadeEquipamento: p.disponibilidadeEquipamento ?? null,
+          localEstudo: p.localEstudo ?? null,
+          acompanhamentoFamiliar: p.acompanhamentoFamiliar ?? null,
+          apoiosPrioritarios,
+        };
+      }),
     /** Códigos do catálogo; vazio/omitido em importações v1. */
     barreiras: z.array(barreiraCodigoEnum).optional().default([]),
   })
@@ -208,6 +299,20 @@ export const coletaSchema = z
     /** B-08 — Bloco A (mobile T2+; T1/planilha permanece flexível). */
     const isMobileColeta = data.momento.codigo !== "T1";
     if (isMobileColeta) {
+      if (!/^FAM-\d{3,6}$/.test(data.familia.codigoFamilia)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["familia", "codigoFamilia"],
+          message: "codigoFamilia deve estar no formato FAM-001",
+        });
+      }
+      if (!/^ALU-\d{3,8}$/.test(data.aluno.codigoAluno)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["aluno", "codigoAluno"],
+          message: "codigoAluno deve estar no formato ALU-1001",
+        });
+      }
       if (!data.aluno.dataNascimento) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -258,20 +363,51 @@ export const coletaSchema = z
       });
     }
 
-    if (
-      data.pesquisa.necessidadeEducacionalEspecial &&
-      !data.pesquisa.descricaoNecessidade?.trim()
-    ) {
+    if (data.pesquisa.necessidadeEducacionalEspecial) {
+      const needs = data.pesquisa.necessidadesEducacionais;
+      if (!needs.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "necessidadesEducacionais"],
+          message: "Selecione até 2 necessidades educacionais",
+        });
+      } else if (needs.length > MAX_NECESSIDADES_EDUCACIONAIS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "necessidadesEducacionais"],
+          message: `Selecione no máximo ${MAX_NECESSIDADES_EDUCACIONAIS} opções`,
+        });
+      }
+    }
+
+    const { equipamentosEstudo, disponibilidadeEquipamento, apoiosPrioritarios } =
+      data.pesquisa;
+
+    if (isMobileColeta && equipamentosEstudo.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["pesquisa", "descricaoNecessidade"],
-        message: "Descreva a necessidade educacional especial",
+        path: ["pesquisa", "equipamentosEstudo"],
+        message: "Informe os equipamentos de estudo",
       });
     }
 
-    const { equipamentoEstudo, disponibilidadeEquipamento } = data.pesquisa;
-    if (!(equipamentoEstudo == null && disponibilidadeEquipamento == null)) {
-      if (equipamentoEstudo === "NENHUM") {
+    const soNenhum =
+      equipamentosEstudo.length === 1 &&
+      equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+    const hasEquip = equipamentosEstudo.length > 0;
+
+    if (hasEquip) {
+      if (
+        equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
+        equipamentosEstudo.some((c) => c !== EQUIPAMENTO_NENHUM)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "equipamentosEstudo"],
+          message: "'Nenhum' não pode ser combinado com outros equipamentos",
+        });
+      }
+      if (soNenhum) {
         if (
           disponibilidadeEquipamento != null &&
           disponibilidadeEquipamento !== "N_A"
@@ -283,15 +419,46 @@ export const coletaSchema = z
               "Com equipamento 'nenhum', disponibilidade deve ser N_A ou omitida",
           });
         }
-      } else if (
-        equipamentoEstudo != null &&
-        disponibilidadeEquipamento === "N_A"
-      ) {
+      } else if (disponibilidadeEquipamento === "N_A") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["pesquisa", "disponibilidadeEquipamento"],
           message:
             "Disponibilidade N_A só se aplica quando não há equipamento de estudo",
+        });
+      } else if (isMobileColeta && disponibilidadeEquipamento == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "disponibilidadeEquipamento"],
+          message: "Informe a disponibilidade dos equipamentos",
+        });
+      }
+    }
+
+    if (isMobileColeta && apoiosPrioritarios.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pesquisa", "apoiosPrioritarios"],
+        message: "Informe as áreas de apoio prioritário",
+      });
+    }
+    if (apoiosPrioritarios.length > 0) {
+      if (
+        apoiosPrioritarios.includes(APOIO_NENHUM) &&
+        apoiosPrioritarios.some((c) => c !== APOIO_NENHUM)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "apoiosPrioritarios"],
+          message: "'Nenhum' não pode ser combinado com outras áreas",
+        });
+      }
+      const nonEx = apoiosPrioritarios.filter((c) => c !== APOIO_NENHUM);
+      if (nonEx.length > MAX_APOIOS_PRIORITARIOS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pesquisa", "apoiosPrioritarios"],
+          message: `Selecione no máximo ${MAX_APOIOS_PRIORITARIOS} áreas de apoio`,
         });
       }
     }
@@ -317,3 +484,24 @@ export const coletaSchema = z
   });
 
 export type ColetaInput = z.infer<typeof coletaSchema>;
+
+/** Serializa arrays para colunas String do banco (CSV). */
+export function pesquisaToDbScalars(pesquisa: ColetaInput["pesquisa"]) {
+  const soNenhum =
+    pesquisa.equipamentosEstudo.length === 1 &&
+    pesquisa.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+  return {
+    necessidadeEducacionalEspecial: pesquisa.necessidadeEducacionalEspecial,
+    descricaoNecessidade: pesquisa.necessidadeEducacionalEspecial
+      ? joinCodes(pesquisa.necessidadesEducacionais)
+      : null,
+    observacao: pesquisa.observacao ?? null,
+    equipamentoEstudo: joinCodes(pesquisa.equipamentosEstudo),
+    disponibilidadeEquipamento: soNenhum
+      ? ("N_A" as const)
+      : (pesquisa.disponibilidadeEquipamento ?? null),
+    localEstudo: pesquisa.localEstudo ?? null,
+    acompanhamentoFamiliar: pesquisa.acompanhamentoFamiliar ?? null,
+    apoioPrioritario: joinCodes(pesquisa.apoiosPrioritarios),
+  };
+}

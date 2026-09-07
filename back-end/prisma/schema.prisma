@@ -157,8 +157,8 @@ model Responsavel {
   cpf                  String?
   telefone             String?
   email                String?
-  /// Novos (v2); null nas importações da planilha.
-  escolaridade         EscolaridadeResponsavel?
+  /// Novos (v2); null nas importações da planilha. Códigos canônicos em texto.
+  escolaridade         String?
   situacaoOcupacional  SituacaoOcupacional?
 
   aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
@@ -183,12 +183,13 @@ model PesquisaSocioeconomica {
   necessidadeEducacionalEspecial Boolean
   descricaoNecessidade           String?
   observacao                     String?
-  /// Bloco D (v2); null nas importações da planilha.
-  equipamentoEstudo              EquipamentoEstudo?
+  /// Bloco D (v2); CSV de códigos quando multi; null nas importações da planilha.
+  equipamentoEstudo              String?
   disponibilidadeEquipamento     DisponibilidadeEquipamento?
   localEstudo                    LocalEstudo?
-  acompanhamentoFamiliar         AcompanhamentoFamiliar?
-  apoioPrioritario               ApoioPrioritario?
+  acompanhamentoFamiliar         String?
+  /// CSV de códigos (até 2); valor único legado permanece válido.
+  apoioPrioritario               String?
   sincronizadoEm                 DateTime     @default(now())
 
   aluno         Aluno         @relation(fields: [alunoId], references: [id], onDelete: Cascade)

@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump when schema relations change so HMR não reusa client stale. */
-const PRISMA_SCHEMA_VERSION = "barreiras-nn-v1";
+const PRISMA_SCHEMA_VERSION = "escolaridade-string-v2";
 
 function createPrismaClient() {
   return new PrismaClient({

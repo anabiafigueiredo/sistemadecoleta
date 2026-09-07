@@ -1,5 +1,14 @@
 /** Opções padronizadas do questionário v2 (listas oficiais). */
 
+/** Use só quando o responsável pode de fato não conhecer a resposta.
+ * Presente em: escolaridade dos adultos, transporte, ano/série, tipo de internet, frequência.
+ * Não usar em sim/não, parentesco, turno, etapa, etc.
+ */
+export const NAO_SABE = {
+  value: "NAO_SABE",
+  label: "Não sabe informar",
+} as const;
+
 export const TIPO_LOCALIDADE_OPTIONS = [
   { value: "URBANA", label: "Urbana" },
   { value: "RURAL", label: "Rural" },
@@ -7,15 +16,155 @@ export const TIPO_LOCALIDADE_OPTIONS = [
   { value: "OUTRA", label: "Outra" },
 ] as const;
 
+/**
+ * Bairros oficiais de Manaus (GeoJSON manaus-bairros).
+ * `geoNome` = propriedade `nome` no mapa; códigos NAO_SABE/OUTRO não geocodificam.
+ */
+export const BAIRROS_MANAUS = [
+  { value: "ADRIANOPOLIS", label: "Adrianópolis", geoNome: "ADRIANÓPOLIS" },
+  { value: "ALEIXO", label: "Aleixo", geoNome: "ALEIXO" },
+  { value: "ALVORADA", label: "Alvorada", geoNome: "ALVORADA" },
+  { value: "ARMANDO_MENDES", label: "Armando Mendes", geoNome: "ARMANDO MENDES" },
+  { value: "BETANIA", label: "Betânia", geoNome: "BETÂNIA" },
+  { value: "CACHOEIRINHA", label: "Cachoeirinha", geoNome: "CACHOEIRINHA" },
+  { value: "CENTRO", label: "Centro", geoNome: "CENTRO" },
+  { value: "CHAPADA", label: "Chapada", geoNome: "CHAPADA" },
+  { value: "CIDADE_NOVA", label: "Cidade Nova", geoNome: "CIDADE NOVA" },
+  {
+    value: "COL_STO_ANTONIO",
+    label: "Colônia Santo Antônio",
+    geoNome: "COL STO ANTÔNIO",
+  },
+  {
+    value: "COL_TERRA_NOVA",
+    label: "Colônia Terra Nova",
+    geoNome: "COL TERRA NOVA",
+  },
+  {
+    value: "COL_OLIVEIRA_MACHADO",
+    label: "Colônia Oliveira Machado",
+    geoNome: "COL. OLIVEIRA MACHADO",
+  },
+  {
+    value: "COLONIA_ANTONIO_ALEIXO",
+    label: "Colônia Antônio Aleixo",
+    geoNome: "COLÔNIA ANTÔNIO ALEIXO",
+  },
+  { value: "COMPENSA", label: "Compensa", geoNome: "COMPENSA" },
+  { value: "COROADO", label: "Coroado", geoNome: "COROADO" },
+  { value: "CRESPO", label: "Crespo", geoNome: "CRESPO" },
+  { value: "DA_PAZ", label: "Da Paz", geoNome: "DA PAZ" },
+  {
+    value: "DISTRITO_INDUSTRIAL_I",
+    label: "Distrito Industrial I",
+    geoNome: "DISTRITO INDUSTRIAL I",
+  },
+  {
+    value: "DISTRITO_INDUSTRIAL_II",
+    label: "Distrito Industrial II",
+    geoNome: "DISTRITO INDUSTRIAL II",
+  },
+  { value: "DOM_PEDRO", label: "Dom Pedro", geoNome: "DOM PEDRO" },
+  { value: "EDUCANDOS", label: "Educandos", geoNome: "EDUCANDOS" },
+  { value: "FLORES", label: "Flores", geoNome: "FLORES" },
+  { value: "GLORIA", label: "Glória", geoNome: "GLÓRIA" },
+  { value: "JAPIIM", label: "Japiim", geoNome: "JAPIIM" },
+  { value: "JORGE_TEIXEIRA", label: "Jorge Teixeira", geoNome: "JORGE TEIXEIRA" },
+  { value: "LIRIO_DO_VALE", label: "Lírio do Vale", geoNome: "LÍRIO DO VALE" },
+  { value: "MAUAZINHO", label: "Mauazinho", geoNome: "MAUAZINHO" },
+  {
+    value: "MONTE_DAS_OLIVEIRAS",
+    label: "Monte das Oliveiras",
+    geoNome: "MONTE DAS OLIVEIRAS",
+  },
+  {
+    value: "MORRO_DA_LIBERDADE",
+    label: "Morro da Liberdade",
+    geoNome: "MORRO DA LIBERDADE",
+  },
+  {
+    value: "N_SRA_DE_APARECIDA",
+    label: "Nossa Senhora de Aparecida",
+    geoNome: "N. SRA. DE APARECIDA",
+  },
+  {
+    value: "NOSSA_SENHORA_DAS_GRACAS",
+    label: "Nossa Senhora das Graças",
+    geoNome: "NOSSA SENHORA DAS GRAÇAS",
+  },
+  { value: "NOVA_ESPERANCA", label: "Nova Esperança", geoNome: "NOVA ESPERANÇA" },
+  { value: "NOVO_ISRAEL", label: "Novo Israel", geoNome: "NOVO ISRAEL" },
+  {
+    value: "PARQUE_10_DE_NOVEMBRO",
+    label: "Parque 10 de Novembro",
+    geoNome: "PARQUE 10 DE NOVEMBRO",
+  },
+  { value: "PETROPOLIS", label: "Petrópolis", geoNome: "PETRÓPOLIS" },
+  { value: "PLANALTO", label: "Planalto", geoNome: "PLANALTO" },
+  { value: "PONTA_NEGRA", label: "Ponta Negra", geoNome: "PONTA NEGRA" },
+  {
+    value: "PRACA_14_DE_JANEIRO",
+    label: "Praça 14 de Janeiro",
+    geoNome: "PRAÇA 14 DE JANEIRO",
+  },
+  { value: "PRES_VARGAS", label: "Presidente Vargas", geoNome: "PRES. VARGAS" },
+  { value: "PURAQUEQUARA", label: "Puraquequara", geoNome: "PURAQUEQUARA" },
+  { value: "RAIZ", label: "Raiz", geoNome: "RAIZ" },
+  { value: "REDENCAO", label: "Redenção", geoNome: "REDENÇÃO" },
+  { value: "SANTA_ETELVINA", label: "Santa Etelvina", geoNome: "SANTA ETELVINA" },
+  { value: "SANTA_LUZIA", label: "Santa Luzia", geoNome: "SANTA LUZIA" },
+  {
+    value: "SANTO_AGOSTINHO",
+    label: "Santo Agostinho",
+    geoNome: "SANTO AGOSTINHO",
+  },
+  { value: "SANTO_ANTONIO", label: "Santo Antônio", geoNome: "SANTO ANTONIO" },
+  { value: "SAO_FRANCISCO", label: "São Francisco", geoNome: "SÃO FRANCISCO" },
+  { value: "SAO_GERALDO", label: "São Geraldo", geoNome: "SÃO GERALDO" },
+  { value: "SAO_JORGE", label: "São Jorge", geoNome: "SÃO JORGE" },
+  {
+    value: "SAO_JOSE_OPERARIO",
+    label: "São José Operário",
+    geoNome: "SÃO JOSÉ OPERÁRIO",
+  },
+  { value: "SAO_LAZARO", label: "São Lázaro", geoNome: "SÃO LÁZARO" },
+  { value: "SAO_RAIMUNDO", label: "São Raimundo", geoNome: "SÃO RAIMUNDO" },
+  { value: "TANCREDO_NEVES", label: "Tancredo Neves", geoNome: "TANCREDO NEVES" },
+  { value: "TARUMA", label: "Tarumã", geoNome: "TARUMÃ" },
+  { value: "VILA_BURITI", label: "Vila Buriti", geoNome: "VILA BURITI" },
+  { value: "VILA_DA_PRATA", label: "Vila da Prata", geoNome: "VILA DA PRATA" },
+  {
+    value: "ZUMBI_DOS_PALMARES",
+    label: "Zumbi dos Palmares",
+    geoNome: "ZUMBI DOS PALMARES",
+  },
+] as const;
+
+export const BAIRRO_OPTIONS = [
+  ...BAIRROS_MANAUS,
+  NAO_SABE,
+  { value: "OUTRO", label: "Outro" },
+] as const;
+
+/** Códigos que não entram no mapa de renda. */
+export const BAIRROS_SEM_MAPA = new Set(["NAO_SABE", "OUTRO"]);
+
 export const ESCOLARIDADE_OPTIONS = [
-  { value: "SEM_ESCOLARIDADE", label: "Sem escolaridade" },
-  { value: "FUNDAMENTAL_INCOMPLETO", label: "Fundamental incompleto" },
-  { value: "FUNDAMENTAL_COMPLETO", label: "Fundamental completo" },
-  { value: "MEDIO_INCOMPLETO", label: "Médio incompleto" },
-  { value: "MEDIO_COMPLETO", label: "Médio completo" },
-  { value: "SUPERIOR_INCOMPLETO", label: "Superior incompleto" },
-  { value: "SUPERIOR_COMPLETO", label: "Superior completo" },
-  { value: "POS_GRADUACAO", label: "Pós-graduação" },
+  {
+    value: "SEM_OU_FUND_INCOMPLETO",
+    label: "Sem escolaridade ou Ensino Fundamental incompleto",
+  },
+  {
+    value: "FUND_COMP_OU_MEDIO_INCOMP",
+    label: "Ensino Fundamental completo ou Ensino Médio incompleto",
+  },
+  { value: "MEDIO_COMPLETO", label: "Ensino Médio completo" },
+  { value: "SUPERIOR_INCOMPLETO", label: "Ensino Superior incompleto" },
+  {
+    value: "SUP_COMP_OU_POS",
+    label: "Ensino Superior completo ou Pós-graduação",
+  },
+  NAO_SABE,
 ] as const;
 
 export const SITUACAO_OCUPACIONAL_OPTIONS = [
@@ -53,7 +202,6 @@ export const LOCAL_ESTUDO_OPTIONS = [
 
 export const ACOMPANHAMENTO_FAMILIAR_OPTIONS = [
   { value: "SEMPRE", label: "Sempre" },
-  { value: "FREQUENTEMENTE", label: "Frequentemente" },
   { value: "AS_VEZES", label: "Às vezes" },
   { value: "RARAMENTE", label: "Raramente" },
   { value: "NUNCA", label: "Nunca" },
@@ -61,8 +209,11 @@ export const ACOMPANHAMENTO_FAMILIAR_OPTIONS = [
 
 export const APOIO_PRIORITARIO_OPTIONS = [
   { value: "REFORCO", label: "Reforço escolar" },
-  { value: "INCLUSAO_DIGITAL", label: "Inclusão digital" },
-  { value: "AEE", label: "AEE" },
+  { value: "ACESSO_TECNOLOGIA", label: "Acesso à tecnologia" },
+  {
+    value: "AEE",
+    label: "Atendimento Educacional Especializado (AEE)",
+  },
   { value: "ESPORTES_CULTURA", label: "Esportes / cultura" },
   { value: "ORIENTACAO", label: "Orientação" },
   { value: "APOIO_SOCIAL", label: "Apoio social" },
@@ -100,6 +251,7 @@ export const MEIO_TRANSPORTE_OPTIONS = [
   { value: "CARRO", label: "Carro" },
   { value: "BARCO", label: "Barco / fluvial" },
   { value: "OUTRO", label: "Outro" },
+  NAO_SABE,
 ] as const;
 
 export const TURNO_OPTIONS = [
@@ -124,6 +276,7 @@ export const ANO_SERIE_OPTIONS = [
   { value: "3_ANO_EM", label: "3º ano EM" },
   { value: "EJA", label: "EJA" },
   { value: "OUTRO", label: "Outro" },
+  NAO_SABE,
 ] as const;
 
 export const TIPO_ACESSO_INTERNET_OPTIONS = [
@@ -131,6 +284,7 @@ export const TIPO_ACESSO_INTERNET_OPTIONS = [
   { value: "DADOS_MOVEIS", label: "Dados móveis" },
   { value: "INTERNET_COMPARTILHADA", label: "Internet compartilhada" },
   { value: "OUTRO", label: "Outro" },
+  NAO_SABE,
 ] as const;
 
 export const BENEFICIO_SOCIAL_OPTIONS = [
@@ -149,8 +303,32 @@ export const PARENTESCO_OPTIONS = [
   { value: "OUTRO", label: "Outro" },
 ] as const;
 
+/** Necessidades educacionais específicas (máx. 2 na coleta). */
+export const NECESSIDADE_EDUCACIONAL_OPTIONS = [
+  { value: "DEFICIENCIA_INTELECTUAL", label: "Deficiência intelectual" },
+  { value: "DEFICIENCIA_FISICA", label: "Deficiência física" },
+  { value: "DEFICIENCIA_VISUAL", label: "Deficiência visual" },
+  { value: "DEFICIENCIA_AUDITIVA", label: "Deficiência auditiva" },
+  {
+    value: "TEA",
+    label: "Transtorno do Espectro Autista (TEA)",
+  },
+  {
+    value: "TDAH",
+    label: "Transtorno de Déficit de Atenção/Hiperatividade (TDAH)",
+  },
+  { value: "ALTAS_HABILIDADES", label: "Altas habilidades / superdotação" },
+  { value: "OUTRA", label: "Outra" },
+] as const;
+
+export const EQUIPAMENTO_NENHUM = "NENHUM" as const;
+export const APOIO_NENHUM = "NENHUM" as const;
+export const MAX_NECESSIDADES_EDUCACIONAIS = 2;
+export const MAX_APOIOS_PRIORITARIOS = 2;
+
 export type TipoLocalidadeValue =
   (typeof TIPO_LOCALIDADE_OPTIONS)[number]["value"];
+export type BairroValue = (typeof BAIRRO_OPTIONS)[number]["value"];
 export type EscolaridadeValue =
   (typeof ESCOLARIDADE_OPTIONS)[number]["value"];
 export type SituacaoOcupacionalValue =
@@ -175,20 +353,77 @@ export type TipoAcessoInternetValue =
 export type BeneficioSocialValue =
   (typeof BENEFICIO_SOCIAL_OPTIONS)[number]["value"];
 export type ParentescoValue = (typeof PARENTESCO_OPTIONS)[number]["value"];
+export type NecessidadeEducacionalValue =
+  (typeof NECESSIDADE_EDUCACIONAL_OPTIONS)[number]["value"];
+
+/** Alterna código; exclusive limpa as demais e vice-versa; max limita não-exclusivos. */
+export function toggleExclusiveCode(
+  selected: readonly string[],
+  code: string,
+  exclusiveCode: string,
+  maxNonExclusive?: number,
+): string[] {
+  if (code === exclusiveCode) {
+    return selected.includes(exclusiveCode) ? [] : [exclusiveCode];
+  }
+  const withoutExclusive = selected.filter((c) => c !== exclusiveCode);
+  if (withoutExclusive.includes(code)) {
+    return withoutExclusive.filter((c) => c !== code);
+  }
+  if (
+    maxNonExclusive != null &&
+    withoutExclusive.length >= maxNonExclusive
+  ) {
+    return [...withoutExclusive];
+  }
+  return [...withoutExclusive, code];
+}
+
+/** Alterna até `max` códigos (sem exclusivo). */
+export function toggleMaxCodes(
+  selected: readonly string[],
+  code: string,
+  max: number,
+): string[] {
+  if (selected.includes(code)) {
+    return selected.filter((c) => c !== code);
+  }
+  if (selected.length >= max) return [...selected];
+  return [...selected, code];
+}
 
 /** Alterna barreira; NENHUMA limpa as demais e vice-versa. */
 export function toggleBarreira(
   selected: readonly string[],
   code: string,
 ): string[] {
-  if (code === BARREIRA_NENHUMA) {
-    return selected.includes(BARREIRA_NENHUMA) ? [] : [BARREIRA_NENHUMA];
-  }
-  const withoutNenhuma = selected.filter((c) => c !== BARREIRA_NENHUMA);
-  if (withoutNenhuma.includes(code)) {
-    return withoutNenhuma.filter((c) => c !== code);
-  }
-  return [...withoutNenhuma, code];
+  return toggleExclusiveCode(selected, code, BARREIRA_NENHUMA);
+}
+
+/** "COMPUTADOR,CELULAR" ↔ ["COMPUTADOR","CELULAR"]. */
+export function splitCodes(raw: string | null | undefined): string[] {
+  if (raw == null) return [];
+  const trimmed = String(raw).trim();
+  if (!trimmed) return [];
+  return trimmed
+    .split(/[,;|]/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
+export function joinCodes(codes: readonly string[]): string | null {
+  const unique = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
+  return unique.length ? unique.join(",") : null;
+}
+
+export function labelsOf(
+  options: ReadonlyArray<{ value: string; label: string }>,
+  values: readonly string[],
+): string {
+  return values
+    .map((v) => canonicalLabel(options, v, v))
+    .filter(Boolean)
+    .join(", ");
 }
 
 function normalizeOptionKey(value: string): string {
@@ -201,24 +436,44 @@ function normalizeOptionKey(value: string): string {
     .trim();
 }
 
+/** Códigos/labels legados → código canônico atual. */
+const LEGACY_CODE_ALIASES: Record<string, string> = {
+  SEM_ESCOLARIDADE: "SEM_OU_FUND_INCOMPLETO",
+  FUNDAMENTAL_INCOMPLETO: "SEM_OU_FUND_INCOMPLETO",
+  FUNDAMENTAL_COMPLETO: "FUND_COMP_OU_MEDIO_INCOMP",
+  MEDIO_INCOMPLETO: "FUND_COMP_OU_MEDIO_INCOMP",
+  SUPERIOR_COMPLETO: "SUP_COMP_OU_POS",
+  POS_GRADUACAO: "SUP_COMP_OU_POS",
+  INCLUSAO_DIGITAL: "ACESSO_TECNOLOGIA",
+  FREQUENTEMENTE: "SEMPRE",
+};
+
 /** Resolve código ou texto legado para a opção oficial (se houver). */
 export function matchOption(
-  options: ReadonlyArray<{ value: string; label: string }>,
+  options: ReadonlyArray<{ value: string; label: string; geoNome?: string }>,
   raw: string | null | undefined,
-): { value: string; label: string } | null {
+): { value: string; label: string; geoNome?: string } | null {
   const v = (raw ?? "").trim();
   if (!v) return null;
 
-  const byCode = options.find((o) => o.value === v);
+  const aliased = LEGACY_CODE_ALIASES[v] ?? LEGACY_CODE_ALIASES[v.toUpperCase()];
+  const candidate = aliased ?? v;
+
+  const byCode = options.find((o) => o.value === candidate);
   if (byCode) return byCode;
 
-  const key = normalizeOptionKey(v);
+  const key = normalizeOptionKey(candidate);
 
   const byCodeNorm = options.find((o) => normalizeOptionKey(o.value) === key);
   if (byCodeNorm) return byCodeNorm;
 
   const byLabel = options.find((o) => normalizeOptionKey(o.label) === key);
   if (byLabel) return byLabel;
+
+  const byGeoNome = options.find(
+    (o) => o.geoNome && normalizeOptionKey(o.geoNome) === key,
+  );
+  if (byGeoNome) return byGeoNome;
 
   // "Bolsa Família" → "Bolsa Família / Auxílio Brasil"
   const byPrefix = options.find((o) => {

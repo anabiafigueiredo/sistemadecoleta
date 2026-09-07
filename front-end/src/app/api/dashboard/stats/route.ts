@@ -10,14 +10,19 @@ import {
 } from "@/lib/aggregations";
 import { fail, ok } from "@/lib/api-response";
 import {
+  ACOMPANHAMENTO_FAMILIAR_OPTIONS,
   APOIO_PRIORITARIO_OPTIONS,
+  BAIRRO_OPTIONS,
+  BAIRROS_SEM_MAPA,
   BARREIRA_NENHUMA,
   BARREIRA_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
+  LOCAL_ESTUDO_OPTIONS,
   MEIO_TRANSPORTE_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
   canonicalCode,
   canonicalLabel,
+  splitCodes,
 } from "@/lib/opcoes-questionario";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +62,7 @@ export async function GET() {
           turno: true,
           tempoDeslocamentoMin: true,
           necessidadeEducacionalEspecial: true,
+          frequenciaEscolarPct: true,
           versaoQuestionario: true,
         },
       }),
@@ -64,6 +70,8 @@ export async function GET() {
         where: { versaoQuestionario: 2 },
         select: {
           apoioPrioritario: true,
+          localEstudo: true,
+          acompanhamentoFamiliar: true,
           barreiras: {
             select: {
               barreira: { select: { codigo: true, nome: true } },
@@ -94,6 +102,46 @@ export async function GET() {
     const coletasV2ComBarreira = pesquisasV2.filter((p) =>
       p.barreiras.some((pb) => pb.barreira.codigo !== BARREIRA_NENHUMA),
     ).length;
+
+    /** Frequência escolar — entrevistas com % informada (planilha + app). */
+    const FREQUENCIA_MINIMA_MANAUS = 75;
+    const frequencias = pesquisas
+      .map((p) =>
+        p.frequenciaEscolarPct == null
+          ? null
+          : Number(p.frequenciaEscolarPct),
+      )
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    const comFrequenciaAbaixo75 = frequencias.filter(
+      (v) => v < FREQUENCIA_MINIMA_MANAUS,
+    ).length;
+
+    /** Local adequado = SIM; base = entrevistas do app com resposta. */
+    const localEstudoInformado = pesquisasV2.filter(
+      (p) => p.localEstudo != null && p.localEstudo.trim() !== "",
+    );
+    const comLocalEstudoAdequado = localEstudoInformado.filter((p) => {
+      const code =
+        canonicalCode(LOCAL_ESTUDO_OPTIONS, p.localEstudo) ??
+        p.localEstudo?.trim();
+      return code === "SIM";
+    }).length;
+
+    /** Acompanhamento regular = Sempre (escala atual sem "Frequentemente"). */
+    const ACOMPANHAMENTO_REGULAR = new Set(["SEMPRE"]);
+    const acompanhamentoInformado = pesquisasV2.filter(
+      (p) =>
+        p.acompanhamentoFamiliar != null &&
+        p.acompanhamentoFamiliar.trim() !== "",
+    );
+    const comAcompanhamentoRegular = acompanhamentoInformado.filter((p) => {
+      const code =
+        canonicalCode(
+          ACOMPANHAMENTO_FAMILIAR_OPTIONS,
+          p.acompanhamentoFamiliar,
+        ) ?? p.acompanhamentoFamiliar!.trim().toUpperCase();
+      return ACOMPANHAMENTO_REGULAR.has(code);
+    }).length;
 
     /** Distribuições: agrupar por código canônico; rótulo só na resposta. */
     const internetAcessoDistribuicao = groupCount(familias, (f) => {
@@ -135,21 +183,32 @@ export async function GET() {
       }))
       .sort((a, b) => b.total - a.total);
 
-    const apoioPrioritarioDistribuicao = groupCount(
-      pesquisasV2.filter((p) => p.apoioPrioritario != null),
-      (p) =>
-        canonicalCode(APOIO_PRIORITARIO_OPTIONS, p.apoioPrioritario) ??
-        String(p.apoioPrioritario),
-    )
-      .map(({ key, total }) => ({
+    const apoioCounts = new Map<string, number>();
+    for (const p of pesquisasV2) {
+      if (p.apoioPrioritario == null || !String(p.apoioPrioritario).trim()) {
+        continue;
+      }
+      for (const raw of splitCodes(p.apoioPrioritario)) {
+        const codigo =
+          canonicalCode(APOIO_PRIORITARIO_OPTIONS, raw) ?? raw;
+        apoioCounts.set(codigo, (apoioCounts.get(codigo) ?? 0) + 1);
+      }
+    }
+    const apoioPrioritarioDistribuicao = Array.from(apoioCounts.entries())
+      .map(([key, total]) => ({
         apoio: canonicalLabel(APOIO_PRIORITARIO_OPTIONS, key),
         total,
       }))
       .sort((a, b) => b.total - a.total);
 
     const rendaPorBairro = groupAverage(
-      familias,
-      (f) => f.bairro,
+      familias.filter((f) => {
+        const b = f.bairro?.trim();
+        if (!b) return false;
+        return !BAIRROS_SEM_MAPA.has(b.toUpperCase());
+      }),
+      (f) =>
+        canonicalCode(BAIRRO_OPTIONS, f.bairro) ?? f.bairro.trim(),
       (f) => Number(f.rendaFamiliarMensal),
     )
       .map(({ key, average: rendaMedia, count }) => ({
@@ -196,6 +255,23 @@ export async function GET() {
       percentualComNee: percent(comNee, pesquisas.length),
       percentualComBarreiraV2: percent(coletasV2ComBarreira, totalColetasV2),
       coletasV2ComBarreira,
+      frequenciaEscolarMediaPct: round2(average(frequencias)),
+      totalComFrequenciaInformada: frequencias.length,
+      comFrequenciaAbaixo75,
+      percentualFrequenciaAbaixo75: percent(
+        comFrequenciaAbaixo75,
+        frequencias.length,
+      ),
+      percentualLocalEstudoAdequado: percent(
+        comLocalEstudoAdequado,
+        localEstudoInformado.length,
+      ),
+      totalLocalEstudoInformado: localEstudoInformado.length,
+      percentualAcompanhamentoRegular: percent(
+        comAcompanhamentoRegular,
+        acompanhamentoInformado.length,
+      ),
+      totalAcompanhamentoInformado: acompanhamentoInformado.length,
       tempoMedioDeslocamentoMin: Math.round(
         average(pesquisas.map((p) => p.tempoDeslocamentoMin)),
       ),

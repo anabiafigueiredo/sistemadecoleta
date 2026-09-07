@@ -45,7 +45,16 @@ function isAbortError(err: unknown) {
   );
 }
 
-export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
+export function AlunosTable({
+  refreshKey = 0,
+  totalColetas,
+  totalColetasV2,
+}: {
+  refreshKey?: number;
+  /** Totais do painel — exibidos junto à consulta de entrevistas. */
+  totalColetas?: number;
+  totalColetasV2?: number;
+}) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [origemFiltro, setOrigemFiltro] = useState<OrigemFiltro>("TODOS");
@@ -114,6 +123,16 @@ export function AlunosTable({ refreshKey = 0 }: { refreshKey?: number }) {
               Consulta de entrevistas
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
+              {totalColetas != null ? (
+                <>
+                  {totalColetas} entrevista
+                  {totalColetas === 1 ? "" : "s"} no total
+                  {totalColetasV2 != null
+                    ? ` · ${totalColetasV2} pelo aplicativo`
+                    : ""}
+                  .{" "}
+                </>
+              ) : null}
               Aluno, família/comunidade, data, ciclo (1 = baseline, 2 = campo) e
               status
             </CardDescription>

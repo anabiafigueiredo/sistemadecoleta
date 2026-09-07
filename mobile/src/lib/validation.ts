@@ -1,18 +1,31 @@
 import { z } from "zod";
 import type { ColetaFormState, ColetaPayload } from "@/lib/types";
-import { cpfErrorMessage, onlyDigits, parseCurrencyToNumber } from "@/lib/masks";
+import {
+  codigoAlunoErrorMessage,
+  codigoFamiliaErrorMessage,
+  cpfErrorMessage,
+  formatCurrencyDisplay,
+  onlyDigits,
+  parseCurrencyToNumber,
+} from "@/lib/masks";
 import {
   ACOMPANHAMENTO_FAMILIAR_OPTIONS,
   ANO_SERIE_OPTIONS,
+  APOIO_NENHUM,
   APOIO_PRIORITARIO_OPTIONS,
+  BAIRRO_OPTIONS,
   BARREIRA_NENHUMA,
   BARREIRA_OPTIONS,
   BENEFICIO_SOCIAL_OPTIONS,
   DISPONIBILIDADE_EQUIPAMENTO_OPTIONS,
   EQUIPAMENTO_ESTUDO_OPTIONS,
+  EQUIPAMENTO_NENHUM,
   ESCOLARIDADE_OPTIONS,
   LOCAL_ESTUDO_OPTIONS,
+  MAX_APOIOS_PRIORITARIOS,
+  MAX_NECESSIDADES_EDUCACIONAIS,
   MEIO_TRANSPORTE_OPTIONS,
+  NECESSIDADE_EDUCACIONAL_OPTIONS,
   PARENTESCO_OPTIONS,
   SITUACAO_OCUPACIONAL_OPTIONS,
   TIPO_ACESSO_INTERNET_OPTIONS,
@@ -34,6 +47,7 @@ function valuesOf<T extends string>(
 }
 
 const tipoLocalidadeValues = valuesOf(TIPO_LOCALIDADE_OPTIONS);
+const bairroValues = valuesOf(BAIRRO_OPTIONS);
 const escolaridadeValues = valuesOf(ESCOLARIDADE_OPTIONS);
 const situacaoValues = valuesOf(SITUACAO_OCUPACIONAL_OPTIONS);
 const equipamentoValues = valuesOf(EQUIPAMENTO_ESTUDO_OPTIONS);
@@ -48,6 +62,7 @@ const anoSerieValues = valuesOf(ANO_SERIE_OPTIONS);
 const tipoAcessoValues = valuesOf(TIPO_ACESSO_INTERNET_OPTIONS);
 const beneficioValues = valuesOf(BENEFICIO_SOCIAL_OPTIONS);
 const parentescoValues = valuesOf(PARENTESCO_OPTIONS);
+const necessidadeValues = valuesOf(NECESSIDADE_EDUCACIONAL_OPTIONS);
 
 function requiredEnum(
   values: readonly string[],
@@ -60,11 +75,15 @@ function requiredEnum(
 }
 
 const coletaFormObject = z.object({
-  momentoCodigo: z.enum(["T2", "T3"]),
-  codigoFamilia: z.string().trim().min(1, "Código da família é obrigatório"),
-  endereco: z.string().trim().min(1, "Endereço é obrigatório"),
-  bairro: z.string().trim().min(1, "Bairro é obrigatório"),
-  comunidade: z.string().trim().min(1, "Comunidade é obrigatória"),
+  momentoCodigo: z.union([
+    z.literal(""),
+    z.literal("T2"),
+    z.literal("T3"),
+  ]),
+  codigoFamilia: z.string().trim().min(1, "Informe o código da família"),
+  endereco: z.string().trim().min(1, "Informe o endereço"),
+  bairro: requiredEnum(bairroValues, "Selecione o bairro"),
+  comunidade: z.string().trim().min(1, "Informe a comunidade"),
   tipoLocalidade: requiredEnum(
     tipoLocalidadeValues,
     "Selecione o tipo de localidade",
@@ -72,35 +91,38 @@ const coletaFormObject = z.object({
   qtdMoradores: z
     .string()
     .trim()
-    .min(1, "Qtd. moradores é obrigatória")
+    .min(1, "Informe a quantidade de moradores")
     .refine((v: string) => Number.isInteger(Number(v)) && Number(v) >= 1, {
-      message: "Qtd. moradores deve ser inteiro ≥ 1",
+      message: "Informe um número inteiro maior que zero",
     }),
   rendaFamiliarMensal: z
     .string()
     .trim()
-    .min(1, "Renda familiar é obrigatória")
+    .min(1, "Informe a renda familiar")
     .refine((v: string) => {
       const n = parseCurrencyToNumber(v);
       return Number.isFinite(n) && n >= 0;
-    }, "Renda inválida (use valor ≥ 0)"),
-  recebeBeneficioSocial: z.boolean(),
+    }, "Informe um valor de renda válido"),
+  recebeBeneficioSocial: z.boolean().nullable(),
   beneficioSocial: z.string(),
-  possuiInternetCasa: z.boolean(),
+  possuiInternetCasa: z.boolean().nullable(),
   tipoAcessoInternet: z.string(),
-  codigoAluno: z.string().trim().min(1, "Código do aluno é obrigatório"),
-  nomeAluno: z.string().trim().min(1, "Nome do aluno é obrigatório"),
+  codigoAluno: z.string().trim().min(1, "Informe o código do aluno"),
+  nomeAluno: z.string().trim().min(1, "Informe o nome completo do aluno"),
   dataNascimento: z.string(),
   sexo: z.enum(["", "M", "F"]),
   cpfAluno: z.string(),
-  nomeResponsavel: z.string().trim().min(1, "Nome do responsável é obrigatório"),
-  parentesco: requiredEnum(parentescoValues, "Selecione o parentesco"),
+  nomeResponsavel: z
+    .string()
+    .trim()
+    .min(1, "Informe o nome do responsável entrevistado"),
+  parentesco: requiredEnum(parentescoValues, "Selecione o parentesco com o aluno"),
   cpfResponsavel: z.string(),
   telefone: z.string(),
   email: z.string(),
   escolaridade: requiredEnum(
     escolaridadeValues,
-    "Selecione a escolaridade do responsável",
+    "Selecione a escolaridade dos adultos da residência",
   ),
   situacaoOcupacional: requiredEnum(
     situacaoValues,
@@ -108,34 +130,32 @@ const coletaFormObject = z.object({
   ),
   meioTransporteEscola: requiredEnum(
     meioTransporteValues,
-    "Selecione o meio de transporte",
+    "Selecione o meio de transporte do aluno",
   ),
   tempoDeslocamentoMin: z
     .string()
     .trim()
-    .min(1, "Tempo de deslocamento é obrigatório")
+    .min(1, "Informe o tempo de deslocamento")
     .refine((v: string) => Number.isInteger(Number(v)) && Number(v) >= 0, {
-      message: "Tempo deve ser inteiro ≥ 0",
+      message: "Informe o tempo em minutos (0 ou mais)",
     }),
-  anoSerie: requiredEnum(anoSerieValues, "Selecione o ano/série"),
-  turno: requiredEnum(turnoValues, "Selecione o turno"),
-  necessidadeEducacionalEspecial: z.boolean(),
-  descricaoNecessidade: z.string(),
+  frequenciaEscolarPct: z.string(),
+  anoSerie: requiredEnum(anoSerieValues, "Selecione o ano/série do aluno"),
+  turno: requiredEnum(turnoValues, "Selecione o turno do aluno"),
+  necessidadeEducacionalEspecial: z.boolean().nullable(),
+  necessidadesEducacionais: z.array(z.string()),
   observacao: z.string(),
-  equipamentoEstudo: requiredEnum(
-    equipamentoValues,
-    "Selecione o equipamento de estudo",
-  ),
+  equipamentosEstudo: z.array(z.string()),
   disponibilidadeEquipamento: z.string(),
-  localEstudo: requiredEnum(localEstudoValues, "Selecione o local de estudo"),
+  localEstudo: requiredEnum(
+    localEstudoValues,
+    "Selecione se o aluno tem local adequado para estudar",
+  ),
   acompanhamentoFamiliar: requiredEnum(
     acompanhamentoValues,
-    "Selecione o acompanhamento familiar",
+    "Selecione com que frequência um adulto acompanha os estudos",
   ),
-  apoioPrioritario: requiredEnum(
-    apoioValues,
-    "Selecione o apoio prioritário",
-  ),
+  apoiosPrioritarios: z.array(z.string()),
   barreiras: z.array(z.string()),
 });
 
@@ -143,7 +163,21 @@ type ColetaFormObject = z.infer<typeof coletaFormObject>;
 
 export const coletaFormSchema = coletaFormObject.superRefine(
   (data: ColetaFormObject, ctx: z.RefinementCtx) => {
-    if (data.recebeBeneficioSocial) {
+    if (data.momentoCodigo !== "T2" && data.momentoCodigo !== "T3") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["momentoCodigo"],
+        message: "Escolha se esta é uma coleta em campo ou uma reavaliação",
+      });
+    }
+
+    if (data.recebeBeneficioSocial === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recebeBeneficioSocial"],
+        message: "Informe se a família recebe benefício social",
+      });
+    } else if (data.recebeBeneficioSocial) {
       if (!(beneficioValues as readonly string[]).includes(data.beneficioSocial)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -152,7 +186,14 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         });
       }
     }
-    if (data.possuiInternetCasa) {
+
+    if (data.possuiInternetCasa === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["possuiInternetCasa"],
+        message: "Informe se o aluno tem internet em casa para estudar",
+      });
+    } else if (data.possuiInternetCasa) {
       if (
         !(tipoAcessoValues as readonly string[]).includes(data.tipoAcessoInternet)
       ) {
@@ -163,18 +204,74 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         });
       }
     }
-    if (
-      data.necessidadeEducacionalEspecial &&
-      !data.descricaoNecessidade.trim()
-    ) {
+
+    if (data.necessidadeEducacionalEspecial === null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["descricaoNecessidade"],
-        message: "Descreva a necessidade educacional especial",
+        path: ["necessidadeEducacionalEspecial"],
+        message: "Informe se o aluno tem necessidade educacional específica",
       });
+    } else if (data.necessidadeEducacionalEspecial) {
+      const needs = data.necessidadesEducacionais;
+      if (!needs.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["necessidadesEducacionais"],
+          message: "Selecione até 2 necessidades do aluno",
+        });
+      } else if (needs.length > MAX_NECESSIDADES_EDUCACIONAIS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["necessidadesEducacionais"],
+          message: `Selecione no máximo ${MAX_NECESSIDADES_EDUCACIONAIS} opções`,
+        });
+      } else if (
+        needs.some(
+          (c: string) => !(necessidadeValues as readonly string[]).includes(c),
+        )
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["necessidadesEducacionais"],
+          message: "Selecione uma necessidade da lista",
+        });
+      }
     }
 
-    if (data.equipamentoEstudo === "NENHUM") {
+    if (!data.equipamentosEstudo.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["equipamentosEstudo"],
+        message: "Selecione os equipamentos do aluno (ou Nenhum)",
+      });
+    } else {
+      const invalidEq = data.equipamentosEstudo.filter(
+        (c: string) => !(equipamentoValues as readonly string[]).includes(c),
+      );
+      if (invalidEq.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["equipamentosEstudo"],
+          message: "Selecione um equipamento da lista",
+        });
+      }
+      if (
+        data.equipamentosEstudo.includes(EQUIPAMENTO_NENHUM) &&
+        data.equipamentosEstudo.some((c: string) => c !== EQUIPAMENTO_NENHUM)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["equipamentosEstudo"],
+          message: "'Nenhum' não pode ser combinado com outros equipamentos",
+        });
+      }
+    }
+
+    const soEquipamentoNenhum =
+      data.equipamentosEstudo.length === 1 &&
+      data.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+
+    if (soEquipamentoNenhum) {
       if (
         data.disponibilidadeEquipamento &&
         data.disponibilidadeEquipamento !== "N_A"
@@ -182,27 +279,68 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["disponibilidadeEquipamento"],
-          message: "Sem equipamento, disponibilidade deve ser 'Não se aplica'",
+          message: "Sem equipamento, use 'Não se aplica'",
         });
       }
-    } else if (
-      !(disponibilidadeValues as readonly string[]).includes(
-        data.disponibilidadeEquipamento,
-      ) ||
-      data.disponibilidadeEquipamento === "N_A"
-    ) {
+    } else if (data.equipamentosEstudo.length > 0) {
+      if (
+        !(disponibilidadeValues as readonly string[]).includes(
+          data.disponibilidadeEquipamento,
+        ) ||
+        data.disponibilidadeEquipamento === "N_A"
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["disponibilidadeEquipamento"],
+          message: "Selecione a disponibilidade dos equipamentos",
+        });
+      }
+    }
+
+    if (!data.apoiosPrioritarios.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["disponibilidadeEquipamento"],
-        message: "Selecione a disponibilidade do equipamento",
+        path: ["apoiosPrioritarios"],
+        message: "Selecione até 2 áreas de apoio (ou Nenhum)",
       });
+    } else {
+      const invalidAp = data.apoiosPrioritarios.filter(
+        (c: string) => !(apoioValues as readonly string[]).includes(c),
+      );
+      if (invalidAp.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["apoiosPrioritarios"],
+          message: "Selecione uma área de apoio da lista",
+        });
+      }
+      if (
+        data.apoiosPrioritarios.includes(APOIO_NENHUM) &&
+        data.apoiosPrioritarios.some((c: string) => c !== APOIO_NENHUM)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["apoiosPrioritarios"],
+          message: "'Nenhum' não pode ser combinado com outras áreas",
+        });
+      }
+      const nonExclusive = data.apoiosPrioritarios.filter(
+        (c: string) => c !== APOIO_NENHUM,
+      );
+      if (nonExclusive.length > MAX_APOIOS_PRIORITARIOS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["apoiosPrioritarios"],
+          message: `Selecione no máximo ${MAX_APOIOS_PRIORITARIOS} áreas de apoio`,
+        });
+      }
     }
 
     if (!data.barreiras.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["barreiras"],
-        message: "Selecione ao menos uma barreira (ou Nenhuma)",
+        message: "Selecione ao menos um fator (ou Nenhuma)",
       });
     } else {
       const invalid = data.barreiras.filter(
@@ -212,7 +350,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["barreiras"],
-          message: "Barreira inválida",
+          message: "Selecione um fator da lista",
         });
       }
       if (
@@ -222,7 +360,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["barreiras"],
-          message: "'Nenhuma' não pode ser combinada com outras barreiras",
+          message: "'Nenhuma' não pode ser combinada com outros fatores",
         });
       }
     }
@@ -232,7 +370,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["cpfAluno"],
-        message: cpfAlunoMsg,
+        message: cpfAlunoMsg === "CPF incompleto" ? "CPF incompleto" : "CPF inválido",
       });
     }
     const cpfRespMsg = cpfErrorMessage(data.cpfResponsavel);
@@ -240,7 +378,60 @@ export const coletaFormSchema = coletaFormObject.superRefine(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["cpfResponsavel"],
-        message: cpfRespMsg,
+        message: cpfRespMsg === "CPF incompleto" ? "CPF incompleto" : "CPF inválido",
+      });
+    }
+
+    const famMsg = codigoFamiliaErrorMessage(data.codigoFamilia);
+    if (famMsg) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["codigoFamilia"],
+        message: famMsg,
+      });
+    }
+    const aluMsg = codigoAlunoErrorMessage(data.codigoAluno);
+    if (aluMsg) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["codigoAluno"],
+        message: aluMsg,
+      });
+    }
+
+    const freq = data.frequenciaEscolarPct.trim();
+    if (!freq) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["frequenciaEscolarPct"],
+        message: "Informe a frequência ou escolha 'Não sabe informar'",
+      });
+    } else if (freq !== "NAO_SABE") {
+      const n = Number(freq);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["frequenciaEscolarPct"],
+          message: "Informe um percentual entre 0 e 100",
+        });
+      }
+    }
+
+    const phoneDigits = onlyDigits(data.telefone);
+    if (phoneDigits.length < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["telefone"],
+        message: "Informe o telefone com DDD",
+      });
+    }
+
+    const emailTrim = data.email.trim();
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["email"],
+        message: "E-mail inválido",
       });
     }
 
@@ -249,7 +440,7 @@ export const coletaFormSchema = coletaFormObject.superRefine(
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["dataNascimento"],
-        message: "Data de nascimento é obrigatória",
+        message: "Informe a data de nascimento do aluno",
       });
     } else {
       const birthErr = birthDateErrorMessage(birth);
@@ -261,7 +452,8 @@ export const coletaFormSchema = coletaFormObject.superRefine(
         });
       }
     }
-  });
+  },
+);
 
 function birthDateErrorMessage(raw: string): string | null {
   const digits = onlyDigits(raw);
@@ -283,14 +475,14 @@ function birthDateErrorMessage(raw: string): string | null {
     return "Data de nascimento inválida";
   }
   const now = new Date();
-  if (dt > now) return "Data de nascimento não pode ser no futuro";
+  if (dt > now) return "A data não pode ser no futuro";
   if (yyyy < 1900) return "Data de nascimento inválida";
   return null;
 }
 
 export type ColetaFormErrors = Partial<Record<keyof ColetaFormState, string>>;
 
-/** Etapas do wizard (B-07). */
+/** Etapas do wizard — estrutura 2.1–2.5. */
 export const COLETA_WIZARD_STEPS = [
   {
     id: "aluno",
@@ -306,9 +498,22 @@ export const COLETA_WIZARD_STEPS = [
     ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
   },
   {
+    id: "responsavel",
+    title: "Responsável entrevistado",
+    shortTitle: "2. Responsável",
+    fields: [
+      "nomeResponsavel",
+      "parentesco",
+      "cpfResponsavel",
+      "telefone",
+      "email",
+      "situacaoOcupacional",
+    ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
+  },
+  {
     id: "familia",
-    title: "Familiar entrevistado e residência",
-    shortTitle: "2. Familiar",
+    title: "Família e contexto socioeconômico",
+    shortTitle: "3. Família",
     fields: [
       "codigoFamilia",
       "endereco",
@@ -319,48 +524,43 @@ export const COLETA_WIZARD_STEPS = [
       "rendaFamiliarMensal",
       "recebeBeneficioSocial",
       "beneficioSocial",
-      "possuiInternetCasa",
-      "tipoAcessoInternet",
-      "nomeResponsavel",
-      "parentesco",
-      "cpfResponsavel",
-      "telefone",
-      "email",
       "escolaridade",
-      "situacaoOcupacional",
     ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
   },
   {
-    id: "socioeconomico",
-    title: "Contexto socioeconômico",
-    shortTitle: "3. Socioeconômico",
+    id: "escolar",
+    title: "Situação escolar",
+    shortTitle: "4. Escolar",
     fields: [
-      "meioTransporteEscola",
-      "tempoDeslocamentoMin",
       "anoSerie",
       "turno",
-      "necessidadeEducacionalEspecial",
-      "descricaoNecessidade",
-      "observacao",
+      "frequenciaEscolarPct",
+      "meioTransporteEscola",
+      "tempoDeslocamentoMin",
+      "barreiras",
     ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
   },
   {
-    id: "educacional",
-    title: "Contexto educacional familiar",
-    shortTitle: "4. Educacional",
+    id: "estudo",
+    title: "Condições de estudo e apoio ao aluno",
+    shortTitle: "5. Estudo",
     fields: [
-      "equipamentoEstudo",
+      "possuiInternetCasa",
+      "tipoAcessoInternet",
+      "equipamentosEstudo",
       "disponibilidadeEquipamento",
       "localEstudo",
       "acompanhamentoFamiliar",
-      "apoioPrioritario",
-      "barreiras",
+      "necessidadeEducacionalEspecial",
+      "necessidadesEducacionais",
+      "apoiosPrioritarios",
+      "observacao",
     ] as const satisfies ReadonlyArray<keyof ColetaFormState>,
   },
   {
     id: "revisao",
     title: "Revisão e confirmação",
-    shortTitle: "5. Revisão",
+    shortTitle: "6. Revisão",
     fields: [] as const satisfies ReadonlyArray<keyof ColetaFormState>,
   },
 ] as const;
@@ -408,32 +608,34 @@ export function validateColetaForm(form: ColetaFormState): {
 
   const d = parsed.data;
   const renda = parseCurrencyToNumber(d.rendaFamiliarMensal);
-  const disponibilidade =
-    d.equipamentoEstudo === "NENHUM"
-      ? ("N_A" as const)
-      : (d.disponibilidadeEquipamento as (typeof disponibilidadeValues)[number]);
+  const soEquipamentoNenhum =
+    d.equipamentosEstudo.length === 1 &&
+    d.equipamentosEstudo[0] === EQUIPAMENTO_NENHUM;
+  const disponibilidade = soEquipamentoNenhum
+    ? ("N_A" as const)
+    : (d.disponibilidadeEquipamento as (typeof disponibilidadeValues)[number]);
 
   const payload: ColetaPayload = {
-    momento: { codigo: d.momentoCodigo },
+    momento: { codigo: d.momentoCodigo as "T2" | "T3" },
     familia: {
-      codigoFamilia: d.codigoFamilia.trim(),
+      codigoFamilia: d.codigoFamilia.trim().toUpperCase(),
       endereco: d.endereco.trim(),
       bairro: d.bairro.trim(),
       comunidade: d.comunidade.trim(),
       tipoLocalidade: d.tipoLocalidade as (typeof tipoLocalidadeValues)[number],
       qtdMoradores: Number(d.qtdMoradores),
       rendaFamiliarMensal: renda,
-      recebeBeneficioSocial: d.recebeBeneficioSocial,
+      recebeBeneficioSocial: Boolean(d.recebeBeneficioSocial),
       beneficioSocial: d.recebeBeneficioSocial
         ? (d.beneficioSocial as (typeof beneficioValues)[number])
         : null,
-      possuiInternetCasa: d.possuiInternetCasa,
+      possuiInternetCasa: Boolean(d.possuiInternetCasa),
       tipoAcessoInternet: d.possuiInternetCasa
         ? (d.tipoAcessoInternet as (typeof tipoAcessoValues)[number])
         : null,
     },
     aluno: {
-      codigoAluno: d.codigoAluno.trim(),
+      codigoAluno: d.codigoAluno.trim().toUpperCase(),
       nome: d.nomeAluno.trim(),
       dataNascimento: toIsoDate(d.dataNascimento.trim())!,
       sexo: d.sexo === "" ? null : d.sexo,
@@ -452,20 +654,23 @@ export function validateColetaForm(form: ColetaFormState): {
       meioTransporteEscola:
         d.meioTransporteEscola as (typeof meioTransporteValues)[number],
       tempoDeslocamentoMin: Number(d.tempoDeslocamentoMin),
-      frequenciaEscolarPct: null,
+      frequenciaEscolarPct:
+        d.frequenciaEscolarPct.trim() === "NAO_SABE"
+          ? null
+          : Number(d.frequenciaEscolarPct),
       anoSerie: d.anoSerie as (typeof anoSerieValues)[number],
       turno: d.turno as (typeof turnoValues)[number],
-      necessidadeEducacionalEspecial: d.necessidadeEducacionalEspecial,
-      descricaoNecessidade: d.necessidadeEducacionalEspecial
-        ? d.descricaoNecessidade.trim()
+      necessidadeEducacionalEspecial: Boolean(d.necessidadeEducacionalEspecial),
+      necessidadesEducacionais: d.necessidadeEducacionalEspecial
+        ? (d.necessidadesEducacionais as (typeof necessidadeValues)[number][])
         : null,
       observacao: d.observacao.trim() ? d.observacao.trim() : null,
-      equipamentoEstudo: d.equipamentoEstudo as (typeof equipamentoValues)[number],
+      equipamentosEstudo: d.equipamentosEstudo as (typeof equipamentoValues)[number][],
       disponibilidadeEquipamento: disponibilidade,
       localEstudo: d.localEstudo as (typeof localEstudoValues)[number],
       acompanhamentoFamiliar:
         d.acompanhamentoFamiliar as (typeof acompanhamentoValues)[number],
-      apoioPrioritario: d.apoioPrioritario as (typeof apoioValues)[number],
+      apoiosPrioritarios: d.apoiosPrioritarios as (typeof apoioValues)[number][],
     },
     barreiras: d.barreiras as (typeof barreiraValues)[number][],
   };
@@ -488,7 +693,7 @@ function toIsoDate(raw: string): string | null {
 
 export function emptyForm(): ColetaFormState {
   return {
-    momentoCodigo: "T2",
+    momentoCodigo: "",
     codigoFamilia: "",
     endereco: "",
     bairro: "",
@@ -496,9 +701,9 @@ export function emptyForm(): ColetaFormState {
     tipoLocalidade: "",
     qtdMoradores: "",
     rendaFamiliarMensal: "",
-    recebeBeneficioSocial: false,
+    recebeBeneficioSocial: null,
     beneficioSocial: "",
-    possuiInternetCasa: false,
+    possuiInternetCasa: null,
     tipoAcessoInternet: "",
     codigoAluno: "",
     nomeAluno: "",
@@ -514,22 +719,57 @@ export function emptyForm(): ColetaFormState {
     situacaoOcupacional: "",
     meioTransporteEscola: "",
     tempoDeslocamentoMin: "",
+    frequenciaEscolarPct: "",
     anoSerie: "",
     turno: "",
-    necessidadeEducacionalEspecial: false,
-    descricaoNecessidade: "",
+    necessidadeEducacionalEspecial: null,
+    necessidadesEducacionais: [],
     observacao: "",
-    equipamentoEstudo: "",
+    equipamentosEstudo: [],
     disponibilidadeEquipamento: "",
     localEstudo: "",
     acompanhamentoFamiliar: "",
-    apoioPrioritario: "",
+    apoiosPrioritarios: [],
     barreiras: [],
   };
 }
 
 export function formFromPayload(payload: ColetaPayload): ColetaFormState {
   const codigo = payload.momento.codigo === "T3" ? "T3" : "T2";
+  const pesquisa = payload.pesquisa as ColetaPayload["pesquisa"] & {
+    /** legado offline */
+    equipamentoEstudo?: string;
+    apoioPrioritario?: string;
+    descricaoNecessidade?: string | null;
+  };
+
+  const equipamentosEstudo = (
+    pesquisa.equipamentosEstudo?.length
+      ? pesquisa.equipamentosEstudo
+      : pesquisa.equipamentoEstudo
+        ? [pesquisa.equipamentoEstudo]
+        : []
+  ) as ColetaFormState["equipamentosEstudo"];
+
+  const apoiosPrioritarios = (
+    pesquisa.apoiosPrioritarios?.length
+      ? pesquisa.apoiosPrioritarios
+      : pesquisa.apoioPrioritario
+        ? [pesquisa.apoioPrioritario]
+        : []
+  ) as ColetaFormState["apoiosPrioritarios"];
+
+  const necessidadesEducacionais = (
+    pesquisa.necessidadesEducacionais?.length
+      ? pesquisa.necessidadesEducacionais
+      : pesquisa.descricaoNecessidade
+        ? pesquisa.descricaoNecessidade
+            .split(/[,;|]/)
+            .map((c) => c.trim())
+            .filter(Boolean)
+        : []
+  ) as ColetaFormState["necessidadesEducacionais"];
+
   return {
     momentoCodigo: codigo,
     codigoFamilia: payload.familia.codigoFamilia,
@@ -538,12 +778,12 @@ export function formFromPayload(payload: ColetaPayload): ColetaFormState {
     comunidade: payload.familia.comunidade,
     tipoLocalidade: payload.familia.tipoLocalidade ?? "",
     qtdMoradores: String(payload.familia.qtdMoradores),
-    rendaFamiliarMensal: String(payload.familia.rendaFamiliarMensal).replace(
-      ".",
-      ",",
+    rendaFamiliarMensal: formatCurrencyDisplay(
+      Number(payload.familia.rendaFamiliarMensal),
     ),
     recebeBeneficioSocial: payload.familia.recebeBeneficioSocial,
-    beneficioSocial: (payload.familia.beneficioSocial ?? "") as ColetaFormState["beneficioSocial"],
+    beneficioSocial: (payload.familia.beneficioSocial ??
+      "") as ColetaFormState["beneficioSocial"],
     possuiInternetCasa: payload.familia.possuiInternetCasa,
     tipoAcessoInternet: (payload.familia.tipoAcessoInternet ??
       "") as ColetaFormState["tipoAcessoInternet"],
@@ -551,7 +791,7 @@ export function formFromPayload(payload: ColetaPayload): ColetaFormState {
     nomeAluno: payload.aluno.nome,
     dataNascimento: payload.aluno.dataNascimento
       ? isoToBr(payload.aluno.dataNascimento)
-      : "", // legado / edição incompleta — validação exige na gravação
+      : "",
     sexo: payload.aluno.sexo ?? "",
     cpfAluno: payload.aluno.cpf ?? "",
     nomeResponsavel: payload.responsavel.nome,
@@ -565,18 +805,22 @@ export function formFromPayload(payload: ColetaPayload): ColetaFormState {
     meioTransporteEscola: (payload.pesquisa.meioTransporteEscola ??
       "") as ColetaFormState["meioTransporteEscola"],
     tempoDeslocamentoMin: String(payload.pesquisa.tempoDeslocamentoMin),
+    frequenciaEscolarPct:
+      payload.pesquisa.frequenciaEscolarPct == null
+        ? "NAO_SABE"
+        : String(payload.pesquisa.frequenciaEscolarPct),
     anoSerie: (payload.pesquisa.anoSerie ?? "") as ColetaFormState["anoSerie"],
     turno: (payload.pesquisa.turno ?? "") as ColetaFormState["turno"],
     necessidadeEducacionalEspecial:
       payload.pesquisa.necessidadeEducacionalEspecial,
-    descricaoNecessidade: payload.pesquisa.descricaoNecessidade ?? "",
+    necessidadesEducacionais,
     observacao: payload.pesquisa.observacao ?? "",
-    equipamentoEstudo: payload.pesquisa.equipamentoEstudo ?? "",
+    equipamentosEstudo,
     disponibilidadeEquipamento:
       payload.pesquisa.disponibilidadeEquipamento ?? "",
     localEstudo: payload.pesquisa.localEstudo ?? "",
     acompanhamentoFamiliar: payload.pesquisa.acompanhamentoFamiliar ?? "",
-    apoioPrioritario: payload.pesquisa.apoioPrioritario ?? "",
+    apoiosPrioritarios,
     barreiras: payload.barreiras ?? [],
   };
 }

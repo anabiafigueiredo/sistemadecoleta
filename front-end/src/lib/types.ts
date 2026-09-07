@@ -37,10 +37,37 @@ export type DashboardStats = {
   /**
    * % de entrevistas do app com ≥1 barreira real (exceto NENHUMA).
    * Numerador: coletasV2ComBarreira; denominador: totalColetasV2.
+   * Mantido para avisos; a análise principal vai no gráfico de barreiras.
    */
   percentualComBarreiraV2: number;
   /** Contagem absoluta do numerador de percentualComBarreiraV2. */
   coletasV2ComBarreira: number;
+  /**
+   * Média de frequenciaEscolarPct.
+   * Denominador: entrevistas com frequência informada (planilha + app).
+   */
+  frequenciaEscolarMediaPct: number;
+  /** Quantidade de entrevistas com frequência preenchida. */
+  totalComFrequenciaInformada: number;
+  /** Entrevistas com frequência < 75% (mínimo obrigatório em Manaus). */
+  comFrequenciaAbaixo75: number;
+  /**
+   * % com frequência < 75%.
+   * Denominador: totalComFrequenciaInformada.
+   */
+  percentualFrequenciaAbaixo75: number;
+  /**
+   * % com local adequado para estudar (localEstudo = SIM).
+   * Denominador: entrevistas do app com localEstudo informado.
+   */
+  percentualLocalEstudoAdequado: number;
+  totalLocalEstudoInformado: number;
+  /**
+   * % com acompanhamento familiar regular (Sempre).
+   * Denominador: entrevistas do app com acompanhamento informado.
+   */
+  percentualAcompanhamentoRegular: number;
+  totalAcompanhamentoInformado: number;
   /** Média de tempoDeslocamentoMin; unidade: entrevista (pesquisa). */
   tempoMedioDeslocamentoMin: number;
   /** Há entrevistas v1 e v2 — gráficos v2 devem avisar amostra parcial. */

@@ -1,12 +1,12 @@
 import {
   GraduationCap,
-  ClipboardList,
   HandHeart,
   Home,
   Accessibility,
   Clock3,
   Wallet,
-  OctagonAlert,
+  BookOpenCheck,
+  CalendarCheck2,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,28 +92,39 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
 
   const contexto: Kpi[] = [
     {
-      label: "Com barreiras à frequência",
-      value: formatPercent(stats.percentualComBarreiraV2),
+      label: "Frequência escolar média",
+      value:
+        stats.totalComFrequenciaInformada === 0
+          ? "—"
+          : formatPercent(stats.frequenciaEscolarMediaPct),
       complement:
-        stats.totalColetasV2 === 0
-          ? "Ainda sem entrevistas pelo aplicativo"
-          : `${stats.coletasV2ComBarreira} de ${stats.totalColetasV2} entrevistas do app`,
-      icon: OctagonAlert,
+        stats.totalComFrequenciaInformada === 0
+          ? "Ainda sem frequência informada"
+          : `${stats.comFrequenciaAbaixo75} de ${stats.totalComFrequenciaInformada} com frequência abaixo de 75% (mínimo em Manaus)`,
+      icon: CalendarCheck2,
     },
     {
-      label: "Entrevistas realizadas",
-      value: String(stats.totalColetas),
-      complement: `${stats.totalColetasV2} pelo aplicativo`,
-      icon: ClipboardList,
+      label: "Local adequado para estudar",
+      value:
+        stats.totalLocalEstudoInformado === 0
+          ? "—"
+          : formatPercent(stats.percentualLocalEstudoAdequado),
+      complement:
+        stats.totalLocalEstudoInformado === 0
+          ? "Ainda sem entrevistas do app com essa resposta"
+          : stats.totalAcompanhamentoInformado === 0
+            ? `Entre ${stats.totalLocalEstudoInformado} entrevistas do app`
+            : `Acompanhamento familiar regular: ${formatPercent(stats.percentualAcompanhamentoRegular)}`,
+      icon: BookOpenCheck,
     },
     {
-      label: "Com benefício",
+      label: "Famílias com benefício social",
       value: formatPercent(stats.percentualComBeneficio),
       complement: "Entre todas as famílias pesquisadas",
       icon: HandHeart,
     },
     {
-      label: "Com necessidade educacional especial",
+      label: "Alunos com necessidade educacional específica",
       value: formatPercent(stats.percentualComNee),
       complement: "Entre as entrevistas realizadas",
       icon: Accessibility,

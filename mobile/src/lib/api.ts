@@ -24,16 +24,34 @@ export class ApiRequestError extends Error {
 type EnvelopeSuccess<T> = { data: T };
 type EnvelopeError = { error: ApiError };
 
+function formatValidationDetails(details: unknown): string | null {
+  if (!details || typeof details !== "object") return null;
+  const fieldErrors = (details as { fieldErrors?: Record<string, string[]> })
+    .fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== "object") return null;
+  const parts: string[] = [];
+  for (const [field, messages] of Object.entries(fieldErrors)) {
+    if (!Array.isArray(messages) || messages.length === 0) continue;
+    parts.push(`${field}: ${messages.join("; ")}`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
 async function parseEnvelope<T>(res: Response): Promise<T> {
   const json = (await res.json()) as EnvelopeSuccess<T> & EnvelopeError;
   if (!res.ok) {
-    throw new ApiRequestError(
-      res.status,
-      json.error ?? {
-        code: "INTERNAL_ERROR",
-        message: `HTTP ${res.status}`,
-      },
-    );
+    const base = json.error ?? {
+      code: "INTERNAL_ERROR",
+      message: `HTTP ${res.status}`,
+    };
+    const detail =
+      base.code === "VALIDATION_ERROR"
+        ? formatValidationDetails(base.details)
+        : null;
+    throw new ApiRequestError(res.status, {
+      ...base,
+      message: detail ? `${base.message} (${detail})` : base.message,
+    });
   }
   return json.data;
 }
@@ -131,6 +149,62 @@ export async function fetchMomentos(): Promise<MomentoRemote[]> {
   const res = await fetch(`${API_URL}/api/dashboard/stats`);
   const data = await parseEnvelope<{ momentos?: MomentoRemote[] }>(res);
   return data.momentos ?? [];
+}
+
+export type CodigosLookup = {
+  aluno: {
+    codigoAluno: string;
+    nome: string;
+    dataNascimento: string | null;
+    sexo: string | null;
+    cpf: string | null;
+    codigoFamilia: string;
+    responsavel: {
+      nome: string;
+      parentesco: string;
+      cpf: string | null;
+      telefone: string | null;
+      email: string | null;
+      escolaridade: string | null;
+      situacaoOcupacional: string | null;
+    } | null;
+  } | null;
+  familia: {
+    codigoFamilia: string;
+    endereco: string;
+    bairro: string;
+    comunidade: string;
+    tipoLocalidade: string | null;
+    qtdMoradores: number;
+    rendaFamiliarMensal: number;
+    recebeBeneficioSocial: boolean;
+    beneficioSocial: string | null;
+    possuiInternetCasa: boolean;
+    tipoAcessoInternet: string | null;
+    qtdAlunos: number;
+  } | null;
+};
+
+/** Existência exata de códigos no servidor (unicidade / vínculo). */
+export async function fetchCodigosLookup(params: {
+  codigoAluno?: string;
+  codigoFamilia?: string;
+}): Promise<CodigosLookup> {
+  const qs = new URLSearchParams();
+  if (params.codigoAluno) qs.set("codigoAluno", params.codigoAluno);
+  if (params.codigoFamilia) qs.set("codigoFamilia", params.codigoFamilia);
+  const res = await fetch(`${API_URL}/api/coleta/lookup?${qs.toString()}`);
+  return parseEnvelope<CodigosLookup>(res);
+}
+
+export type CodigosProximos = {
+  codigoFamilia: string;
+  codigoAluno: string;
+};
+
+export async function fetchProximosCodigos(): Promise<CodigosProximos> {
+  const res = await fetch(`${API_URL}/api/codigos/proximo`);
+  return parseEnvelope<CodigosProximos>(res);
 }
 
 /** IDs de pesquisas ainda existentes no servidor (+ chaves aluno|ciclo). */
