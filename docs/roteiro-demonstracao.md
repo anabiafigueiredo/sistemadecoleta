@@ -1,99 +1,166 @@
-# Roteiro de demonstração (B-13)
+# Roteiro de demonstração 
 
 Checklist ponta a ponta para staging/produção (ou local espelhando prod).
 
-**Objetivo:** mostrar importação já no banco → entrevista mobile offline → sync → dashboard (cards + barreiras).
+**Objetivo:** mostrar planilha já no banco → entrevista mobile v2 (códigos, aluno/família existente, bairro fechado) → offline/sync → dashboard (KPIs, gráficos, **mapa de renda**).
 
-**Tempo estimado:** 15–25 min.
+**Tempo estimado:** 20–30 min.
+
+**Alternativas de aparelho**
+
+| Modo | Quando usar |
+|------|-------------|
+| Expo Go no celular | Demo “de campo” real |
+| Expo Web (`w` no terminal) | Gravação de tela no notebook |
 
 ---
 
 ## Antes da demo (preparação)
 
-- [ ] Banco com seed/importação T1 (planilha) aplicado
-- [ ] Front/API no ar (local, Docker ou Render)
-- [ ] `GET /api/dashboard/stats` responde 200
-- [ ] `GET /api/alunos` lista registros (origem Planilha)
-- [ ] Mobile com `EXPO_PUBLIC_API_URL` apontando para a API da demo
-- [ ] Expo Go SDK 57 no aparelho/emulador
-- [ ] Anotar um **código de aluno novo** (ex.: `ALU-DEMO-001`) para não colidir com a planilha
+- [ ] Migrations aplicadas no banco (incl. multi equipamento/apoio, bairro/códigos recentes)
+- [ ] Seed/importação T1 (planilha) no banco
+- [ ] Front/API no ar (`npm run dev` ou Render) — tipicamente **http://localhost:3000**
+- [ ] `GET /api/dashboard/stats` → 200
+- [ ] `GET /api/alunos` lista registros (há origem Planilha)
+- [ ] `GET /api/codigos/proximo` retorna `FAM-…` e `ALU-…`
+- [ ] Mobile com `EXPO_PUBLIC_API_URL` na API da demo (não use URL `exp://` do QR)
+- [ ] Expo Go SDK 57 **ou** Expo Web; se Web, CORS do front ativo (`middleware.ts`)
+- [ ] Anotar um nome da planilha para busca na consulta
+- [ ] (Opcional) Anotar um `ALU-…` / `FAM-…` já existentes para demo de reutilização
 
 ---
 
-## 1. Base já no banco (planilha)
+## 1. Base já no banco (planilha / Ciclo 1)
 
 1. Abrir o dashboard → `/dashboard`
 2. Confirmar cards com **Alunos** e **Famílias** > 0
-3. Na **Consulta**, filtrar **Planilha**
+3. Na **Consulta**, filtrar origem **Planilha** (ou rótulo equivalente Ciclo 1)
 4. Buscar um nome conhecido da planilha
-5. Expandir **Detalhes** e mostrar família/responsável
+5. Expandir detalhes: família, responsável, momento **T1**
 
-**Esperado:** origem **Planilha**, status com ciclo **T1** (ou momento da importação), v1.
+**Esperado:** origem planilha, ciclo T1, questionário v1 (campos v2 podem estar vazios/nulos).
 
----
-
-## 2. Nova entrevista mobile (offline)
-
-1. No aparelho: modo avião **ou** Wi‑Fi desligado (garantir offline)
-2. Abrir o app → **Nova coleta**
-3. Percorrer o wizard:
-   - [ ] Aluno (momento **T2**, nome, nascimento obrigatório…)
-   - [ ] Família / responsável
-   - [ ] Socioeconômico (transporte, ano/série, turno…)
-   - [ ] Educacional + **barreiras** (marcar pelo menos uma barreira real, não só “Nenhuma”)
-   - [ ] Revisão → **Salvar**
-4. Confirmar mensagem de salvo **offline** / pendente
-5. Abrir tela **Sync** e ver o registro na fila (`sincronizado: false`)
-
-**Esperado:** dados só no aparelho; dashboard ainda **não** mostra a nova entrevista mobile.
+**Narrativa:** “A base histórica já está no Postgres (Supabase); o mobile só acrescenta/atualiza entrevistas.”
 
 ---
 
-## 3. Sync
+## 2. Nova entrevista — aluno e família **novos** (online)
 
-1. Religar a rede
-2. Sync automático (NetInfo) **ou** botão de sync na fila
-3. Confirmar item saiu da pendência / marcado sincronizado
-4. (Opcional) Reenviar a mesma coleta: deve **atualizar** a mesma pesquisa (aluno+momento), sem duplicar barreiras
+Mostra geração automática de códigos e o wizard v2 completo.
 
-**Esperado:** `POST /api/coleta` 200; registro com `origem=MOBILE`, `versaoQuestionario=2`.
+1. App → **Nova coleta**
+2. **Etapa da coleta:** Coleta em campo (**T2**)
+3. Código do aluno: **Novo**
+   - [ ] Código `ALU-…` gerado sozinho (readonly)
+   - [ ] (Opcional) tocar **Gerar novo código do aluno** → número avança
+4. Preencher nome, nascimento, sexo (CPF opcional)
+5. **Responsável:** nome, parentesco, telefone, ocupação…
+6. **Família:** código **Nova**
+   - [ ] `FAM-…` gerado
+   - [ ] Endereço, comunidade, tipo de localidade
+   - [ ] **Bairro:** abrir select pesquisável → escolher um bairro oficial (ex.: Petrópolis) — **não** digitar texto livre
+   - [ ] Moradores (≥ 1), renda (máscara em centavos), benefício, escolaridade dos adultos
+7. **Escolar:** ano/série, turno, frequência (número ou “Não sabe”), transporte, barreiras (marcar ≥1 barreira real, não só “Nenhuma”)
+8. **Estudo / apoio**
+   - [ ] Internet em casa + tipo
+   - [ ] Equipamentos (multi; “Nenhum” exclusivo)
+   - [ ] Local de estudo, acompanhamento
+   - [ ] NEE (sim/não; se sim, até 2 do catálogo)
+   - [ ] Apoios prioritários (até 2; “Nenhum” exclusivo)
+9. **Revisão** → **Salvar e sincronizar**
+   - [ ] Overlay/loading de salvamento
+   - [ ] Mensagem de sincronizado (se online)
+
+**Esperado:** `POST /api/coleta` OK; aluno aparece na consulta como **Mobile / T2 / v2**.
 
 ---
 
-## 4. Dashboard após sync
+## 3. Offline → fila → sync
 
-1. Atualizar o dashboard (botão ou aguardar poll)
-2. **Cards**
-   - [ ] Total de coletas / v2 aumentou (ou aparece ≥1 v2)
-   - [ ] Card **Com barreira (v2)** > 0% se marcou barreira real  
-     Legenda: *base: entrevistas mobile v2*
-3. **Visualizações prioritárias**
-   - [ ] Faixas de renda per capita
-   - [ ] Tipo de acesso à internet (unidade família)
-   - [ ] **Principais barreiras** — aparece a barreira marcada (aviso de amostra parcial se ainda houver muito T1)
-   - [ ] **Apoio prioritário** — reflete a escolha v2
-4. **Consulta**
-   - [ ] Filtro **Mobile**
-   - [ ] Busca pelo **nome** do aluno da demo
-   - [ ] Colunas: família/comunidade, data, origem **Mobile**, status **Sincronizado** + **T2** + **v2**
+1. Modo avião **ou** Wi‑Fi off
+2. Nova coleta rápida (pode reutilizar fluxo enxuto: aluno novo + família nova + campos mínimos válidos)
+3. Salvar → mensagem **offline** / pendente
+4. Tela **Pendentes (Sync):** item na fila
+5. Religar rede → sync automático **ou** botão sync
+6. Confirmar saída da fila
+
+**Esperado:** mesmo contrato da API; sem duplicar ao reenviar o mesmo aluno+momento (atualiza a pesquisa e as barreiras).
 
 ---
 
-## 5. Smoke opcional via API (sem aparelho)
+## 4. Aluno **existente** (reavaliação T3)
 
-Útil se o Expo falhar na hora. Ajuste a URL/porta e use um CPF válido opcional ou omita CPF.
+1. Nova coleta → etapa **Reavaliação (T3)**  
+   (o app tende a sugerir código do aluno = **Existente**)
+2. Abrir select **Selecionar aluno existente**
+   - [ ] Lista carrega (API + fila local)
+   - [ ] Buscar por código ou nome
+   - [ ] Banner “Carregando informações…”
+3. Conferir prefill: nome, CPF, família, responsável
+4. Ajustar só o que mudou na reavaliação (ex.: frequência, barreiras, apoio)
+5. Salvar e sincronizar
+
+**Esperado:** mesmo `ALU-…`; família vinculada correta; nova/atualizada pesquisa no momento **T3**.
+
+**Narrativa:** “Não geramos aluno duplicado; reavaliação reutiliza o cadastro.”
+
+---
+
+## 5. Família **existente** + aluno **novo** (irmão)
+
+1. Nova coleta → T2
+2. Aluno: **Novo** (gera `ALU-…` novo)
+3. Família: **Existente** → buscar `FAM-…` já cadastrada
+4. Conferir endereço/bairro/renda preenchidos; revisar se preciso
+5. Completar responsável/escolar/estudo → salvar
+
+**Esperado:** novo aluno na mesma família; upsert da família sem criar `FAM` duplicado.
+
+**Atenção na demo:** se escolher aluno existente e depois voltar para aluno **Novo**, a família também limpa (volta para Nova) — mostrar isso só se quiser explicar o comportamento.
+
+---
+
+## 6. Dashboard após as entrevistas
+
+Atualizar o dashboard (botão ou poll).
+
+### Cards
+- [ ] Totais de alunos/famílias/coletas coerentes
+- [ ] Coletas v2 / indicadores v2 refletindo o mobile
+- [ ] Card de barreiras (base v2) > 0 se marcou barreira real
+
+### Gráficos
+- [ ] Faixas de renda
+- [ ] Tipo de internet
+- [ ] Principais barreiras (código da barreira marcada)
+- [ ] Apoio prioritário (códigos v2; multi vira contagem)
+
+### Mapa de renda por bairro
+- [ ] Bairro oficial escolhido no mobile **pinta** o polígono
+- [ ] Toque/hover: renda média + nº de famílias
+- [ ] Se testar `NAO_SABE` ou `OUTRO` em outra coleta: **não** geocodifica (sem polígono / aviso)
+
+### Consulta
+- [ ] Filtro Mobile / busca pelo nome da demo
+- [ ] Origem Mobile, ciclo T2 ou T3, v2
+- [ ] Comunidade/bairro exibidos de forma legível
+
+---
+
+## 7. Smoke opcional via API (sem aparelho)
+
+Útil se o Expo falhar. Use **códigos** canônicos (`@sistemadecoleta/questionario`).
 
 ```bash
-# Exemplo mínimo — complete enums oficiais de opcoes-questionario.ts
 curl -sS -X POST "http://localhost:3000/api/coleta" \
   -H "Content-Type: application/json" \
   -d @- <<'EOF'
 {
   "momento": { "codigo": "T2" },
   "familia": {
-    "codigoFamilia": "FAM-DEMO-01",
+    "codigoFamilia": "FAM-900",
     "endereco": "Rua Demo, 1",
-    "bairro": "Centro",
+    "bairro": "CENTRO",
     "comunidade": "Demo",
     "tipoLocalidade": "URBANA",
     "qtdMoradores": 4,
@@ -103,7 +170,7 @@ curl -sS -X POST "http://localhost:3000/api/coleta" \
     "tipoAcessoInternet": "WIFI_RESIDENCIAL"
   },
   "aluno": {
-    "codigoAluno": "ALU-DEMO-001",
+    "codigoAluno": "ALU-9001",
     "nome": "Aluno Demo Sync",
     "dataNascimento": "2014-05-10",
     "sexo": "F"
@@ -111,27 +178,46 @@ curl -sS -X POST "http://localhost:3000/api/coleta" \
   "responsavel": {
     "nome": "Responsavel Demo",
     "parentesco": "MAE",
+    "telefone": "92990000000",
     "escolaridade": "MEDIO_COMPLETO",
     "situacaoOcupacional": "DO_LAR"
   },
   "pesquisa": {
     "meioTransporteEscola": "ONIBUS",
     "tempoDeslocamentoMin": 20,
+    "frequenciaEscolarPct": 90,
     "anoSerie": "5_ANO_EF",
     "turno": "MATUTINO",
     "necessidadeEducacionalEspecial": false,
-    "equipamentoEstudo": "CELULAR",
+    "equipamentosEstudo": ["CELULAR"],
     "disponibilidadeEquipamento": "COMPARTILHADO_DISPONIVEL",
     "localEstudo": "PARCIALMENTE",
     "acompanhamentoFamiliar": "AS_VEZES",
-    "apoioPrioritario": "REFORCO"
+    "apoiosPrioritarios": ["REFORCO"]
   },
   "barreiras": ["TRANSPORTE", "FINANCEIRA"]
 }
 EOF
 ```
 
-Depois: `GET /api/alunos?q=Aluno%20Demo&origem=MOBILE` e conferir gráficos de barreiras.
+Conferir:
+
+```bash
+curl -sS "http://localhost:3000/api/alunos?q=Aluno%20Demo&origem=MOBILE" | head
+curl -sS "http://localhost:3000/api/codigos/proximo"
+curl -sS "http://localhost:3000/api/coleta/lookup?codigoAluno=ALU-9001"
+```
+
+---
+
+## Ordem sugerida na apresentação (cliente)
+
+1. Dashboard com planilha (confiança na base)  
+2. Coleta nova online (códigos + bairro + multi-select)  
+3. Offline → sync (confiabilidade de campo)  
+4. Aluno existente / T3 (reavaliação)  
+5. Mapa + gráficos atualizados  
+6. (Se sobrar tempo) irmão na mesma família  
 
 ---
 
@@ -139,15 +225,14 @@ Depois: `GET /api/alunos?q=Aluno%20Demo&origem=MOBILE` e conferir gráficos de b
 
 | Campo | Valor |
 |-------|--------|
-| Ambiente | local (API `:3001` + Supabase) |
-| Data | 2026-09-06 |
-| URL da API | `http://localhost:3001` |
-| Executor | smoke automatizado (curl) + checklist UI |
-| Offline → sync OK? | sync API OK (201); offline no aparelho — validar na demo presencial |
-| Barreiras no dashboard? | sim (TRANSPORTE, FINANCEIRA; card 100% v2) |
-| Observações | Corrigido `P2028` no `POST /api/coleta` (sem `$transaction` interativo no pooler). |
-
-> Marque/atualize os checkboxes do fluxo mobile offline na primeira execução real com Expo na demo com a cliente.
+| Ambiente | |
+| Data | |
+| URL da API | |
+| Executor | |
+| Offline → sync OK? | |
+| Aluno existente OK? | |
+| Mapa / bairro OK? | |
+| Observações | |
 
 ---
 
@@ -155,8 +240,11 @@ Depois: `GET /api/alunos?q=Aluno%20Demo&origem=MOBILE` e conferir gráficos de b
 
 | Sintoma | O que checar |
 |---------|----------------|
-| Mobile não sync | `EXPO_PUBLIC_API_URL`, firewall, HTTP claro no device, porta correta |
-| Dashboard sem v2 | Seed só T1; falta sync mobile; filtro origem |
-| Erro Zod no POST | Códigos de enum fora da lista oficial |
-| Porta 3000 ocupada | Next sobe em 3001 — alinhar `.env` do mobile |
-| Prisma `P2028` / sync 500 | `DATABASE_URL` em modo *transaction* (pgbouncer `:6543`). Use connection **session** (`:5432`) ou `DIRECT_URL` como URL da app; a API evita `$transaction` interativo no `POST /api/coleta`. |
+| Mobile não sync | `EXPO_PUBLIC_API_URL`, Wi‑Fi, porta do Next, HTTPS no Render |
+| Expo Web: lista de alunos vazia | Front ligado; CORS (`middleware`); restart Expo `-c`; URL vira `localhost` na web |
+| “Gerar novo código” não muda | Versão atual deve avançar; senão rebuild do bundle |
+| Zod / 400 no POST | Código fora do catálogo (bairro, enums); arrays v2 (`equipamentosEstudo`, `apoiosPrioritarios`) |
+| Dashboard sem v2 / barreiras | Falta sync mobile; amostra ainda só T1 |
+| Mapa sem polígono | Bairro `NAO_SABE`/`OUTRO` ou texto legado sem match; use código oficial |
+| Porta 3000 ocupada | Next em 3001 — alinhar `.env` do mobile |
+| Prisma `P2028` | Preferir connection **session** / `DIRECT_URL` (`:5432`); API evita `$transaction` interativo no `POST /api/coleta` |
