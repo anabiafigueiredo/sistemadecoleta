@@ -75,16 +75,16 @@ export function KpiCards({ stats }: { stats: DashboardStats }) {
       icon: Home,
     },
     {
-      label: "Renda",
+      label: "Renda média",
       value: formatCurrency(stats.rendaMediaFamiliar),
       complement: `Per capita (mediana): ${formatCurrency(stats.rendaPerCapitaMediana)}`,
       icon: Wallet,
     },
     {
-      label: "Acesso à escola",
+      label: "Tempo médio de deslocamento",
       value: `${stats.tempoMedioDeslocamentoMin} min`,
       complement: transporteMaisFrequente
-        ? `Mais frequente: ${transporteMaisFrequente}`
+        ? `Meio de transporte mais frequente: ${transporteMaisFrequente}`
         : "Meio de transporte ainda sem dados",
       icon: Clock3,
     },
