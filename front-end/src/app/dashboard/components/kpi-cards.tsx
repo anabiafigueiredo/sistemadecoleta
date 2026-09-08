@@ -36,7 +36,7 @@ function KpiGrid({ items }: { items: Kpi[] }) {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:text-[13px]">
                   {item.label}
                 </p>
-                <CardTitle className="mt-1 break-words text-[28px] font-bold tabular-nums sm:mt-2 sm:text-[36px]">
+                <CardTitle className="mt-1 whitespace-nowrap text-[22px] font-bold leading-tight tabular-nums sm:mt-2 sm:text-[28px]">
                   {item.value}
                 </CardTitle>
               </div>

@@ -76,12 +76,99 @@ mobile/
 
 ## Como rodar
 
-Há dois cenários. Na dúvida (API já no Render), use o **cenário A**.
+Há **dois jeitos** de abrir o app no celular:
+
+| Jeito | Quando usar | Precisa do PC ligado? |
+|-------|-------------|------------------------|
+| **Expo Go** (dev) | mexer no código no dia a dia | sim (`npx expo start`) |
+| **APK (EAS preview)** | demonstração / campo sem cabo nem Expo Go | não |
+
+Para a API, na dúvida use o **cenário A** (produção no Render).
 
 | Cenário | O que sobe no PC | `EXPO_PUBLIC_API_URL` |
 |---------|------------------|------------------------|
-| **A — API em produção** | só `mobile/` (Expo) | `https://sistemadecoleta.onrender.com` |
+| **A — API em produção** | só `mobile/` (Expo) *ou* nada (APK) | `https://sistemadecoleta.onrender.com` |
 | **B — tudo local** | Postgres + `front-end` + `mobile` | IP/porta do Next na LAN |
+
+---
+
+## Rodar com o APK (EAS preview)
+
+Build instalável Android (`.apk`), perfil `preview` em `eas.json`. A URL da API **entra no APK na hora do build** (`EXPO_PUBLIC_API_URL` do perfil) — hoje aponta para `https://sistemadecoleta.onrender.com`.
+
+Não usa Expo Go. Depois de instalar, o app abre sozinho e fala com a API de produção.
+
+### Pré-requisitos
+
+- Conta [expo.dev](https://expo.dev) e login no CLI (`npx expo login`)
+- Celular Android (ou emulador) com permissão para instalar apps de fontes desconhecidas / APK
+- Projeto linkado ao EAS (`eas.projectId` no `app.json` — já configurado)
+
+### 1. Gerar o APK
+
+Na pasta `mobile/`:
+
+```bash
+cd mobile
+npx expo login          # se ainda não estiver logado
+npx eas-cli build --platform android --profile preview
+```
+
+O EAS sobe o projeto, compila na nuvem e mostra o link do build (ex.: `https://expo.dev/accounts/…/projects/coleta-escolar/builds/…`).  
+Espere o status **Finished** (pode levar vários minutos).
+
+Para só disparar e não ficar esperando no terminal:
+
+```bash
+npx eas-cli build --platform android --profile preview --no-wait
+```
+
+Acompanhe depois em [expo.dev](https://expo.dev) → projeto **coleta-escolar** → **Builds**.
+
+### 2. Baixar e instalar no celular
+
+1. Abra a página do build no Expo (link do terminal ou painel).
+2. Em **Download** / **Install**, baixe o `.apk` (no próprio celular ou no PC).
+3. Se baixou no PC: envie o arquivo (Drive, WhatsApp, cabo USB, etc.).
+4. No Android: abra o `.apk` → permita instalar deste origem se pedir → **Instalar**.
+5. Abra **Coleta Escolar** na lista de apps.
+
+Pacote: `br.org.colegiocomunitario.coleta`.
+
+### 3. Usar no dia a dia (sem Metro)
+
+- Abra o app → Início / Planilha / Realizadas / Pendentes.
+- Com API no Render, **não** precisa de `npx expo start` nem da mesma Wi‑Fi do PC.
+- Offline: a coleta fica na fila local; ao voltar a internet, sync automático ou pela aba **Pendentes**.
+
+Teste rápido: aba **Planilha**. Se listar alunos, a API embutida no APK está ok.
+
+### 4. Novo APK depois de mudar código ou API
+
+O APK **não** atualiza sozinho com o código do PC. Qualquer mudança de tela/lógica/API URL exige **novo build**:
+
+```bash
+npx eas-cli build --platform android --profile preview
+```
+
+Instale o novo `.apk` por cima do anterior (mesmo `package`).
+
+Para apontar o APK a outra API, altere `build.preview.env.EXPO_PUBLIC_API_URL` em `eas.json` e gere de novo.
+
+### APK × Expo Go
+
+| | APK (`preview`) | Expo Go |
+|--|-----------------|---------|
+| Instalação | `.apk` baixado do EAS | app Expo Go + QR |
+| Metro / PC | não precisa | precisa (`expo start`) |
+| API | fixa no build (`eas.json`) | `.env` do PC |
+| Uso típico | demo, campo, banca | desenvolvimento |
+
+> Builds `production` no `eas.json` geram **AAB** (Play Store), não APK de instalação direta.
+
+---
+
+## Como rodar com Expo Go (desenvolvimento)
 
 ### 0. O que **não** colocar no `.env`
 
@@ -186,7 +273,7 @@ No terminal aparece o **QR code**.
 | SDK incompatível | Expo Go antigo | atualizar na loja |
 | QR não carrega (só LAN) | Wi‑Fi isolada | mesma rede ou `npm run start:tunnel` |
 
-> Build instalável (APK / EAS): ver `eas.json` — fora do caminho padrão com Expo Go.
+Para instalar sem Expo Go, use a seção **[Rodar com o APK (EAS preview)](#rodar-com-o-apk-eas-preview)** acima.
 
 ## Fluxo offline-first
 
